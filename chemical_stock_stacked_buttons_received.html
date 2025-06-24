@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chemical Stock Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f9ff;
+      --card: #ffffff;
+      --primary: #0d9488;
+      --primary-dark: #0f766e;
+      --border: #e0e0e0;
+      --font: 'Prompt', sans-serif;
+      --danger: #ffe5e5;
+      --warn: #fff7d6;
+      --ok: #e5fbe5;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      margin: 0;
+      padding: 40px 20px;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      max-width: 1400px;
+      margin: auto;
+    }
+
+    h2, h3 {
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+
+    input, button {
+      font-family: var(--font);
+    }
+
+    input[type="file"], input[type="text"], input[type="date"], input[type="number"], input[type="text"], button {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: var(--primary-dark);
+    }
+
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .form-group input {
+      flex: 1 1 200px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px;
+      text-align: center;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+    }
+
+    .danger { background-color: var(--danger); }
+    .warn   { background-color: var(--warn); }
+    .ok     { background-color: var(--ok); }
+
+    #searchBox {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .adjust-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .adjust-buttons button {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+    }
+
+    @media (max-width: 768px) {
+      .form-group {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Chemical_Stock_Data</h2>
+    <input type="file" id="fileInput" accept=".json" />
+    <button onclick="downloadData('json')">📥 Export JSON</button>
+    <button onclick="downloadData('csv')">📊 Export CSV</button>
+
+    <h3>เพิ่มรายการใหม่</h3>
+    <div class="form-group">
+      <input id="date" type="date" placeholder="Date">
+      <input id="chemical" placeholder="Chemical">
+      <input id="volume" placeholder="Volume">
+      <input id="grade" placeholder="Grade">
+      <input id="received" type="number" placeholder="Received">
+      <input id="remaining" type="number" placeholder="Remaining">
+      <input id="note" placeholder="Note">
+    </div>
+    <button onclick="addItem()">➕ เพิ่มรายการ</button>
+
+    <input type="text" id="searchBox" placeholder="🔍 ค้นหาสาร..." oninput="renderTable()">
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Chemical</th>
+          <th>Volume</th>
+          <th>Grade</th>
+          <th>Received</th>
+          <th>Remaining</th>
+          <th>Note</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody id="itemList"></tbody>
+    </table>
+
+    <h3>ประวัติการแก้ไข</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Chemical</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody id="historyList"></tbody>
+    </table>
+  </div>
+
+
+  <script>
+    let allItems = [];
+    let editHistory = [];
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        allItems = JSON.parse(event.target.result);
+        renderTable();
+      };
+      reader.readAsText(e.target.files[0]);
+    });
+
+    function renderTable() {
+      const searchTerm = document.getElementById("searchBox").value.toLowerCase();
+      const tbody = document.getElementById("itemList");
+      tbody.innerHTML = "";
+
+      allItems.forEach((item, index) => {
+        let rawDate = item["date "] || item.date;
+        let date = "-";
+        if (rawDate && !isNaN(new Date(rawDate).getTime())) {
+          date = new Date(rawDate).toISOString().split('T')[0];
+        }
+
+        const chemical = item["chemicals "] || item.chemical || "-";
+        const volume = item["quantity per bottle/drum"] || item.volume || "-";
+        const grade = item["grade"] || "-";
+        const received = item["quantity received (bottle/drum)"] ?? item.received ?? 0;
+        const remaining = item["remaining quantity (bottle/drum)"] ?? item.remaining ?? 0;
+        const note = item["note"] ?? "-";
+
+        if (!chemical.toLowerCase().includes(searchTerm)) return;
+
+        let className = "ok";
+        if (remaining === 0) className = "danger";
+        else if (remaining <= 5) className = "warn";
+
+        const row = document.createElement("tr");
+        row.className = className;
+
+        row.innerHTML = `
+          <td>${date}</td>
+          <td>${chemical}</td>
+          <td>${volume}</td>
+          <td>${grade}</td>
+          <td>
+            <div class="adjust-buttons">
+              <button onclick="adjustReceived(${index}, 1)">+</button>
+              <div>${received}</div>
+              <button onclick="adjustReceived(${index}, -1)">-</button>
+            </div>
+          </td>
+          <td>
+            <div class="adjust-buttons">
+              <button onclick="adjust(${index}, 1)">+</button>
+              <div>${remaining}</div>
+              <button onclick="adjust(${index}, -1)">-</button>
+            </div>
+          </td>
+          <td>${note}</td>
+          <td><button onclick="removeItem(${index})">Delete</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderHistory() {
+      const tbody = document.getElementById("historyList");
+      tbody.innerHTML = "";
+      editHistory.forEach(entry => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${entry.timestamp}</td>
+          <td>${entry.action}</td>
+          <td>${entry.chemical}</td>
+          <td>${entry.note}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function logHistory(action, chemical, note = "") {
+      editHistory.push({
+        timestamp: new Date().toLocaleString(),
+        action,
+        chemical,
+        note
+      });
+      renderHistory();
+    }
+
+    function getChemicalName(item) {
+      return item["chemicals "] || item.chemical || item["chemical name"] || "-";
+    }
+
+    function adjust(index, delta) {
+      const item = allItems[index];
+      const before = parseInt(item["remaining quantity (bottle/drum)"] ?? item.remaining ?? 0);
+      const updated = before + delta;
+      if (updated < 0) return;
+      item["remaining quantity (bottle/drum)"] = updated;
+      item.note = `Adjusted on ${new Date().toLocaleString()}`;
+      logHistory("Adjust Remaining", getChemicalName(item), `${delta > 0 ? '+' : ''}${delta} → ${updated}`);
+      renderTable();
+    }
+
+    function adjustReceived(index, delta) {
+      const item = allItems[index];
+      const before = parseInt(item["quantity received (bottle/drum)"] ?? item.received ?? 0);
+      const updated = before + delta;
+      if (updated < 0) return;
+      item["quantity received (bottle/drum)"] = updated;
+      item.note = `Adjusted on ${new Date().toLocaleString()}`;
+      logHistory("Adjust Amount", getChemicalName(item), `${delta > 0 ? '+' : ''}${delta} → ${updated}`);
+      renderTable();
+    }
+
+   function addItem() {
+  // First confirmation
+  if (!confirm("คุณต้องการเพิ่มรายการนี้ใช่หรือไม่?")) return;
+
+  // Second confirmation
+  if (!confirm("ยืนยันอีกครั้ง: คุณแน่ใจหรือไม่ว่าจะเพิ่มรายการนี้?")) return;
+
+  const item = {
+    date: document.getElementById("date").value,
+    chemical: document.getElementById("chemical").value,
+    volume: document.getElementById("volume").value,
+    grade: document.getElementById("grade").value,
+    received: parseInt(document.getElementById("received").value) || 0,
+    remaining: parseInt(document.getElementById("remaining").value) || 0,
+    note: document.getElementById("note").value
+  };
+  allItems.push(item);
+  logHistory("Added", item.chemical, "New item added");
+  renderTable();
+  document.querySelectorAll('.form-group input').forEach(i => i.value = '');
+}
+
+    function removeItem(index) {
+      if (confirm(`Delete item: "${allItems[index].chemical}"?`)) {
+        const item = allItems.splice(index, 1)[0];
+        logHistory("Deleted", item.chemical, "Item manually deleted");
+        renderTable();
+      }
+    }
+
+    function downloadData(type) {
+      let content = "";
+      const filename = `chemical_stock_export_${new Date().toISOString().split('T')[0]}.${type}`;
+      if (type === "json") {
+        content = JSON.stringify(allItems, null, 2);
+        downloadFile(content, filename, "application/json");
+      } else if (type === "csv") {
+        const headers = Object.keys(allItems[0]);
+        const rows = allItems.map(obj => headers.map(h => '"' + (obj[h] || '').toString().replace(/"/g, '""') + '"').join(","));
+        content = [headers.join(","), ...rows].join("\n");
+        downloadFile('\uFEFF' + content, filename, "text/csv;charset=utf-8;");
+      }
+    }
+
+    function downloadFile(content, filename, type) {
+      const blob = new Blob([content], { type });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+  </script>
+</body>
+</html>
