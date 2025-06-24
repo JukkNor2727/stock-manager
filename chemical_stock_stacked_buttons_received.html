@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -130,9 +131,10 @@
 <body>
   <div class="card">
     <h2>Chemical_Stock_Data</h2>
-    <input type="file" id="fileInput" accept=".json" />
+    
     <button onclick="downloadData('json')">📥 Export JSON</button>
     <button onclick="downloadData('csv')">📊 Export CSV</button>
+<button onclick="saveToGoogleSheet()">📝 บันทึกไปยัง Google Sheet</button>
 
     <h3>เพิ่มรายการใหม่</h3>
     <div class="form-group">
@@ -181,16 +183,9 @@
 
   <script>
     let allItems = [];
+    let originalItems = [];
     let editHistory = [];
 
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        allItems = JSON.parse(event.target.result);
-        renderTable();
-      };
-      reader.readAsText(e.target.files[0]);
-    });
 
     function renderTable() {
       const searchTerm = document.getElementById("searchBox").value.toLowerCase();
@@ -348,6 +343,63 @@
       a.download = filename;
       a.click();
     }
-  </script>
+  
+fetch("https://corsproxy.io/?https://drive.google.com/uc?export=download&id=1Z-Juq6jC8eCIL84CQtzv17gxrVvQzsFM")
+  .then(response => response.json())
+  .then(data => {
+    allItems = data;
+    renderTable();
+  })
+  .catch(error => {
+    console.error("โหลด JSON ไม่สำเร็จ:", error);
+  });
+
+
+fetch("https://opensheet.elk.sh/1xXzerTOeDSc2kxV6VMZz2Yxsfi4Xwi4KbnvOH1EveSQ/Sheet1")
+  .then(res => res.json())
+  .then(data => {
+    if (!Array.isArray(data)) throw new Error("Data is not array");
+    allItems = data.map(item => ({ ...item }));
+    originalItems = data.map(item => ({ ...item }));
+    renderTable();
+  })
+  .catch(err => console.error("โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ:", err));
+
+
+  function saveToGoogleSheet() {
+    if (!confirm("บันทึกเฉพาะรายการที่มีการเปลี่ยนแปลงไปยัง Google Sheet ใช่หรือไม่?")) return;
+
+    const changedItems = allItems.filter(item => {
+      const original = originalItems.find(o => (o.chemical || o["chemicals "]) === (item.chemical || item["chemicals "]));
+      if (!original) return true;
+
+      return (
+        (item["quantity received (bottle/drum)"] ?? item.received) !== (original["quantity received (bottle/drum)"] ?? original.received) ||
+        (item["remaining quantity (bottle/drum)"] ?? item.remaining) !== (original["remaining quantity (bottle/drum)"] ?? original.remaining) ||
+        (item.note ?? '') !== (original.note ?? '')
+      );
+    });
+
+    if (changedItems.length === 0) {
+      alert("ไม่มีรายการที่เปลี่ยนแปลง");
+      return;
+    }
+
+    fetch("https://script.google.com/macros/s/AKfycbyKCbwxGpDnj9O8VOQe_YAyxIsUXg8A3nuH2_vN9S27N7fstxrTWcFLceah4c6crWnZ/exec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changedItems),
+    })
+    .then(res => res.text())
+    .then(msg => {
+      alert("✅ บันทึกเฉพาะรายการที่มีการเปลี่ยนแปลงแล้ว: " + msg);
+    })
+    .catch(err => {
+      console.error("❌ บันทึกล้มเหลว:", err);
+      alert("❌ เกิดข้อผิดพลาดในการบันทึก");
+    });
+  }
+
+</script>
 </body>
 </html>
