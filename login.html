@@ -2,58 +2,128 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Stock Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock Manager — Login / Sign up</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Font: Prompt -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Prompt', sans-serif;
-    }
+    body { font-family: 'Prompt', sans-serif; }
+    .tab-active { background:#0d9488; color:#fff; }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-100 to-white">
-  <div class="w-full max-w-sm bg-white rounded-xl shadow-lg p-8">
-    <h2 class="text-2xl font-bold text-center text-teal-700 mb-6">🔐 เข้าสู่ระบบ</h2>
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-100 to-white p-4">
 
-    <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-600">ชื่อผู้ใช้</label>
-        <input type="text" id="username" required class="mt-1 w-full border rounded p-2 focus:outline-none focus:ring" />
-      </div>
-      <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-lg shadow">เข้าสู่ระบบ</button>
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+    <h1 class="text-2xl font-bold text-center text-teal-700">Stock Manager</h1>
 
-      <p id="errorMsg" class="text-center text-red-600 text-sm mt-4 hidden">❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</p>
+    <!-- Tabs -->
+    <div class="grid grid-cols-2 gap-2 mt-6">
+      <button id="tabLogin" class="py-2 rounded-xl tab-active" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+      <button id="tabSignup" class="py-2 rounded-xl bg-gray-100" onclick="switchTab('signup')">สมัครสมาชิก</button>
+    </div>
+
+    <!-- Login form -->
+    <form id="loginForm" class="mt-6" onsubmit="handleLogin(event)">
+      <label class="block text-sm font-medium text-gray-700">ID ผู้ใช้</label>
+      <input id="loginUser" required class="mt-1 w-full border rounded-lg p-2 focus:outline-none focus:ring">
+
+      <label class="block text-sm font-medium text-gray-700 mt-4">รหัสผ่าน</label>
+      <input id="loginPass" type="password" required class="mt-1 w-full border rounded-lg p-2 focus:outline-none focus:ring">
+
+      <button class="w-full mt-6 bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-xl shadow">
+        เข้าสู่ระบบ
+      </button>
+      <p id="loginErr" class="text-center text-red-600 text-sm mt-3 hidden">❌ ID หรือรหัสผ่านไม่ถูกต้อง</p>
+    </form>
+
+    <!-- Signup form -->
+    <form id="signupForm" class="mt-6 hidden" onsubmit="handleSignup(event)">
+      <label class="block text-sm font-medium text-gray-700">ชื่อที่แสดงในระบบ</label>
+      <input id="suName" required class="mt-1 w-full border rounded-lg p-2 focus:outline-none focus:ring" placeholder="เช่น จักรภพ">
+
+      <label class="block text-sm font-medium text-gray-700 mt-4">ID ผู้ใช้ (ห้ามซ้ำ)</label>
+      <input id="suUser" required class="mt-1 w-full border rounded-lg p-2 focus:outline-none focus:ring" placeholder="เช่น draf">
+
+      <label class="block text-sm font-medium text-gray-700 mt-4">รหัสผ่าน</label>
+      <input id="suPass" type="password" required minlength="4" class="mt-1 w-full border rounded-lg p-2 focus:outline-none focus:ring">
+
+      <label class="block text-sm font-medium text-gray-700 mt-4">ยืนยันรหัสผ่าน</label>
+      <input id="suPass2" type="password" required class="mt-1 w-full border rounded-lg p-2 focus:outline-none focus:ring">
+
+      <button class="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl shadow">
+        สมัครสมาชิก
+      </button>
+      <p id="suMsg" class="text-center text-sm mt-3 hidden"></p>
     </form>
   </div>
 
   <script>
-    function handleLogin(e) {
+    // ---- tabs ----
+    function switchTab(which){
+      const login = document.getElementById('loginForm');
+      const signup = document.getElementById('signupForm');
+      const tL = document.getElementById('tabLogin');
+      const tS = document.getElementById('tabSignup');
+      if(which==='login'){
+        login.classList.remove('hidden'); signup.classList.add('hidden');
+        tL.classList.add('tab-active'); tS.classList.remove('tab-active'); tS.classList.add('bg-gray-100');
+      }else{
+        signup.classList.remove('hidden'); login.classList.add('hidden');
+        tS.classList.add('tab-active'); tL.classList.remove('tab-active'); tL.classList.add('bg-gray-100');
+      }
+    }
+
+    // ---- login ----
+    function handleLogin(e){
       e.preventDefault();
+      const user = document.getElementById('loginUser').value.trim();
+      const pass = document.getElementById('loginPass').value.trim();
 
-      const user = username.value.trim();
-            google.script.run.withSuccessHandler(isOk => {
-          if (isOk) {
-            /*
-             * เก็บชื่อผู้ใช้ให้หน้าอื่นดึงใช้ได้ (ทั้ง sessionStorage และ localStorage)
-             * - sessionStorage: ลบเมื่อปิดแท็บ
-             * - localStorage : อยู่ถาวรจนกว่าจะถูกลบ (ใช้ใน saveChange())
-             */
-            sessionStorage.setItem('loggedInUser', user);
-            localStorage.setItem('currentUser', user);
+      google.script.run.withSuccessHandler(isOk => {
+        if(isOk){
+          sessionStorage.setItem('loggedInUser', user);
+          localStorage.setItem('currentUser', user);
+          google.script.run.withSuccessHandler(url => window.top.location.href = url).getHomeUrl();
+        }else{
+          document.getElementById('loginErr').classList.remove('hidden');
+        }
+      }).checkLogin(user, pass);
+    }
 
-            // ไปหน้า home
-            google.script.run
-              .withSuccessHandler(url => window.top.location.href = url)
-              .getHomeUrl();
-          } else {
-            document.getElementById('errorMsg').classList.remove('hidden');
-          }
-        })
-.checkLogin(user);    }
+    // ---- signup ----
+    function handleSignup(e){
+      e.preventDefault();
+      const name = document.getElementById('suName').value.trim();
+      const user = document.getElementById('suUser').value.trim();
+      const pass = document.getElementById('suPass').value;
+      const pass2 = document.getElementById('suPass2').value;
+      const msg = document.getElementById('suMsg');
+
+      msg.className = 'text-center text-sm mt-3 hidden';
+      msg.textContent = '';
+
+      if(pass !== pass2){
+        msg.textContent = '❌ รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน';
+        msg.classList.remove('hidden'); msg.classList.add('text-red-600');
+        return;
+      }
+
+      google.script.run.withSuccessHandler(res => {
+        if(res?.ok){
+          msg.textContent = '✅ สมัครสำเร็จ! เข้าสู่ระบบให้อัตโนมัติ...';
+          msg.classList.remove('hidden'); msg.classList.add('text-green-600');
+          // auto-login
+          sessionStorage.setItem('loggedInUser', user);
+          localStorage.setItem('currentUser', user);
+          google.script.run.withSuccessHandler(url => window.top.location.href = url).getHomeUrl();
+        }else{
+          msg.textContent = '❌ ' + (res?.error || 'สมัครไม่สำเร็จ');
+          msg.classList.remove('hidden'); msg.classList.add('text-red-600');
+        }
+      }).registerUser(name, user, pass);
+    }
   </script>
 </body>
 </html>
