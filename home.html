@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เลือกระบบเช็กสต็อก</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root { --accent: #0d9488; --accent-dark: #0f766e }
+    body { font-family: 'Prompt', sans-serif; }
+    #overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;
+               background: rgba(255,255,255,.6); backdrop-filter: blur(2px); z-index: 50;
+               opacity: 0; pointer-events: none; transition: opacity .4s; }
+    #overlay.show { opacity: 1; pointer-events: auto; }
+    .spinner { border: 4px solid #86efac; border-top-color: var(--accent);
+               border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-teal-50 to-emerald-100 flex items-center justify-center min-h-screen p-4">
+
+  <!-- overlay loading -->
+  <div id="overlay"><div class="spinner"></div></div>
+
+  <main class="w-full max-w-lg">
+    <div class="bg-white shadow-2xl rounded-2xl overflow-hidden border-t-4 border-teal-500">
+      <div class="p-8 text-center">
+        <h1 class="text-3xl md:text-4xl font-bold text-teal-700">ระบบเช็กสต็อก</h1>
+        <p class="text-gray-500 mt-2">เลือกประเภทสต็อกที่ต้องการ</p>
+      </div>
+
+      <div class="px-8 pb-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Chemical -->
+        <button class="group flex flex-col items-center justify-center p-6 bg-teal-50 hover:bg-white
+                       border-2 border-teal-200 hover:border-teal-500 rounded-xl transition
+                       duration-300 transform hover:-translate-y-1 hover:shadow-lg"
+                onclick="openPage('chemical', 'chemical')">
+          <span class="text-5xl mb-3">🧪</span>
+          <span class="font-semibold text-lg text-teal-800 group-hover:text-teal-600">
+            Chemical Stock
+          </span>
+        </button>
+
+        <!-- Equipment -->
+        <button class="group flex flex-col items-center justify-center p-6 bg-teal-50 hover:bg-white
+                       border-2 border-teal-200 hover:border-teal-500 rounded-xl transition
+                       duration-300 transform hover:-translate-y-1 hover:shadow-lg"
+                onclick="openPage('equipment', 'equipment')">
+          <span class="text-5xl mb-3">📦</span>
+          <span class="font-semibold text-lg text-teal-800 group-hover:text-teal-600">
+            Stock อุปกรณ์ R-D
+          </span>
+        </button>
+
+        <!-- PO-PR -->
+        <button class="group flex flex-col items-center justify-center p-6 bg-teal-50 hover:bg-white
+                       border-2 border-teal-200 hover:border-teal-500 rounded-xl transition
+                       duration-300 transform hover:-translate-y-1 hover:shadow-lg"
+                onclick="openPage('popr', 'popr')">
+          <span class="text-5xl mb-3">📝</span>
+          <span class="font-semibold text-lg text-teal-800 group-hover:text-teal-600">
+            รายการสั่งซื้อ (PO / PR)
+          </span>
+        </button>
+
+        <!-- Backdoor -->
+        <a href="https://docs.google.com/spreadsheets/d/1s2pkzj5i7MQuxj1nXY5oHxRiCXUQFMSL95OVQR0qf2w/edit?gid=0#gid=0" target="_blank"
+           class="group flex flex-col items-center justify-center p-6 bg-teal-50 hover:bg-white
+                  border-2 border-teal-200 hover:border-teal-500 rounded-xl transition
+                  duration-300 transform hover:-translate-y-1 hover:shadow-lg">
+          <span class="text-5xl mb-3">🔑</span>
+          <span class="font-semibold text-lg text-teal-800 group-hover:text-teal-600">
+            ประตูเข้าหลังบ้าน
+          </span>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function openPage(file, key) {
+      document.getElementById('overlay').classList.add('show');
+      google.script.run
+        .withSuccessHandler(html => {
+          const replaced = html.replace(/%%SHEETKEY%%/g, key);
+          const doc = document.open('text/html', 'replace');
+          doc.write(replaced);
+          doc.close();
+        })
+        .withFailureHandler(err => {
+          alert('เกิดข้อผิดพลาด: ' + err.message);
+          document.getElementById('overlay').classList.remove('show');
+        })
+        .loadPage(file);
+    }
+
+    // ----- แสดงชื่อผู้ใช้ -----
+    const user = sessionStorage.getItem('loggedInUser') || localStorage.getItem('currentUser') || 'ไม่ทราบชื่อผู้ใช้';
+
+    const p = document.createElement('p');
+    p.className = 'text-sm text-blue-600 bg-blue-200 px-4 py-2 rounded mt-2 inline-block';
+    p.innerText = '👤 เข้าสู่ระบบในชื่อ: ' + user;
+    document.querySelector('main > div > .p-8')?.appendChild(p);
+
+    // ----- ปุ่มออกจากระบบ -----
+    const logoutBtn = document.createElement('button');
+    logoutBtn.textContent = 'ออกจากระบบ';
+    logoutBtn.className = 'ml-4 text-sm underline text-black';
+    logoutBtn.onclick = () => {
+      localStorage.removeItem('currentUser');
+      sessionStorage.removeItem('loggedInUser');
+      // รีไดเร็กต์กลับหน้า login ในแท็บเดียวกัน
+      window.top.location.href = '?page=login';
+    };
+    p.appendChild(logoutBtn);
+  </script>
+
+</body>
+</html>
