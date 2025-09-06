@@ -354,7 +354,7 @@
   }
 
   // ===== Google Sheets API Bridge =====
-  const API_URL='https://script.google.com/macros/s/AKfycbwvjq63SL_RazdkGrKHLmc4KGbgwtXwxIAdRu6IichY-yel9pku56XJqUl0GN4f2Kk/exec';
+  const API_URL='https://script.google.com/macros/s/AKfycbwEfwL-Xfg-AtkiKUc35azo5nofDrOeNfSIbYxgEdjI2vLx_yUe-Jl384QkyW7iVjkw/exec';
   const API_KEY=''; // ถ้าตั้งใน Apps Script ให้ใส่ให้ตรงกัน
   async function apiGet(params){
     const q=new URLSearchParams({ ...(API_KEY?{key:API_KEY}:{}) , sheet: selectedSheet, ...params }).toString();
