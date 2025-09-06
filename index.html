@@ -266,7 +266,101 @@
   btnSave.addEventListener('click', async ()=>{ if(!validateForm()) return; const payload={ id: editingId||undefined, name:fName.value.trim(), sku:fSku.value.trim(), category:fCategory.value.trim(), qty:Number(fQty.value||0), unit:fUnit.value.trim(), price:Number(fPrice.value||0), note:fNote.value.trim() }; try{ await remoteUpsertItem(payload); await remoteLoadItems(); closeModal(); alert('บันทึกสำเร็จ (Google Sheet)'); }catch(err){ alert('บันทึกลงชีตไม่สำเร็จ จะเก็บออฟไลน์แทน: '+err.message); const localPayload={...payload, updatedAt:Date.now()}; if(editingId){ const idx=items.findIndex(x=>x.id===editingId); if(idx>-1) items[idx]={...items[idx], ...localPayload}; addHistory('แก้ไขข้อมูล(ออฟไลน์)', localPayload.name); } else { items.unshift({id:uid(), ...localPayload}); addHistory('เพิ่มรายการ(ออฟไลน์)', localPayload.name); } saveAll(); renderCategoryFilter(); renderTable(); closeModal(); }
   });
 
-  tbody.addEventListener('click', async (e)=>{ const t=e.target.closest('button'); if(!t) return; const id=t.getAttribute('data-id'); const act=t.getAttribute('data-act'); const idx=items.findIndex(i=>i.id===id); if(idx===-1) return; const it=items[idx]; try{ if(act==='inc'){ const val=Number(prompt('เพิ่มจำนวนเท่าไหร่?','1')); if(!Number.isFinite(val)) return; await remoteAdjustQty(id,val); } else if(act==='dec'){ const val=Number(prompt('ลดจำนวนเท่าไหร่?','1')); if(!Number.isFinite(val)) return; await remoteAdjustQty(id,-Math.abs(val)); } else if(act==='edit'){ editingId=id; openModal('แก้ไขรายการ',it); return; } else if(act==='del'){ if(confirm(`ยืนยันการลบ "${it.name}" ?`)){ await remoteDeleteItem(id); } else { return; } } await remoteLoadItems(); }catch(err){ alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว'); console.error(err); }
+  tbody.addEventListener('click', async (e)=>{
+    const t=e.target.closest('button'); if(!t) return;
+    const id=t.getAttribute('data-id');
+    const act=t.getAttribute('data-act');
+    const idx=items.findIndex(i=>i.id===id); if(idx===-1) return;
+    const it=items[idx];
+    try{
+      if(act==='inc'){
+        const val=Number(prompt('เพิ่มจำนวนเท่าไหร่?','1'));
+        if(!Number.isFinite(val)) return;
+        const who=prompt('ชื่อผู้แก้ไข?','');
+        await remoteAdjustQty(id, val);
+        addHistory('เพิ่มจำนวน', it.name, `+${Math.abs(val)}${who?` (${who})`:''}`);
+      } else if(act==='dec'){
+        const val=Number(prompt('ลดจำนวนเท่าไหร่?','1'));
+        if(!Number.isFinite(val)) return;
+        const who=prompt('ชื่อผู้แก้ไข?','');
+        await remoteAdjustQty(id, -Math.abs(val));
+        addHistory('ลดจำนวน', it.name, `-${Math.abs(val)}${who?` (${who})`:''}`);
+      } else if(act==='edit'){
+        editingId=id; openModal('แก้ไขรายการ', it); return;
+      } else if(act==='del'){
+        if(confirm(`ยืนยันการลบ "${it.name}" ?`)){
+          await remoteDeleteItem(id);
+          const who=prompt('ชื่อผู้แก้ไข?','');
+          addHistory('ลบรายการ', it.name, who?`(${who})`:'' );
+        } else { return; }
+      }
+      await remoteLoadItems();
+    } catch(err){
+      alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว');
+      console.error(err);
+    }
+  }); if(!t) return;
+    const id=t.getAttribute('data-id');
+    const act=t.getAttribute('data-act');
+    const idx=items.findIndex(i=>i.id===id); if(idx===-1) return;
+    const it=items[idx];
+    try{
+      if(act==='inc'){
+        const val = Number(prompt('เพิ่มจำนวนเท่าไหร่?', '1'));
+        if(!Number.isFinite(val)) return;
+        const who = prompt('ชื่อผู้แก้ไข?', '');
+        await remoteAdjustQty(id, val);
+        addHistory('เพิ่มจำนวน', it.name, `+${Math.abs(val)} (${who || 'ไม่ระบุ'})`);
+      } else if(act==='dec'){
+        const val = Number(prompt('ลดจำนวนเท่าไหร่?', '1'));
+        if(!Number.isFinite(val)) return;
+        const who = prompt('ชื่อผู้แก้ไข?', '');
+        await remoteAdjustQty(id, -Math.abs(val));
+        addHistory('ลดจำนวน', it.name, `-${Math.abs(val)} (${who || 'ไม่ระบุ'})`);
+      } else if(act==='edit'){
+        editingId=id; openModal('แก้ไขรายการ', it); return;
+      } else if(act==='del'){
+        if(confirm(`ยืนยันการลบ \"${it.name}\" ?`)){
+          await remoteDeleteItem(id);
+          const who = prompt('ชื่อผู้แก้ไข?', '');
+          addHistory('ลบรายการ', it.name, who || 'ไม่ระบุ');
+        } else { return; }
+      }
+      await remoteLoadItems();
+    } catch(err){
+      alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว');
+      console.error(err);
+    }
+  }); if(!t) return;
+    const id=t.getAttribute('data-id');
+    const act=t.getAttribute('data-act');
+    const idx=items.findIndex(i=>i.id===id); if(idx===-1) return;
+    const it=items[idx];
+    try{
+      if(act==='inc'){
+        const val=Number(prompt('เพิ่มจำนวนเท่าไหร่?','1'));
+        if(!Number.isFinite(val)) return;
+        await remoteAdjustQty(id, val);
+        addHistory('เพิ่มจำนวน', it.name, `+${Math.abs(val)}`);
+      } else if(act==='dec'){
+        const val=Number(prompt('ลดจำนวนเท่าไหร่?','1'));
+        if(!Number.isFinite(val)) return;
+        await remoteAdjustQty(id, -Math.abs(val));
+        addHistory('ลดจำนวน', it.name, `-${Math.abs(val)}`);
+      } else if(act==='edit'){
+        editingId=id; openModal('แก้ไขรายการ', it); return;
+      } else if(act==='del'){
+        if(confirm(`ยืนยันการลบ "${it.name}" ?`)){
+          await remoteDeleteItem(id);
+          addHistory('ลบรายการ', it.name, '');
+        } else { return; }
+      }
+      await remoteLoadItems();
+    } catch(err){
+      alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว');
+      console.error(err);
+    }
+  }); if(!t) return; const id=t.getAttribute('data-id'); const act=t.getAttribute('data-act'); const idx=items.findIndex(i=>i.id===id); if(idx===-1) return; const it=items[idx]; try{ if(act==='inc'){ const val=Number(prompt('เพิ่มจำนวนเท่าไหร่?','1')); if(!Number.isFinite(val)) return; await remoteAdjustQty(id,val); } else if(act==='dec'){ const val=Number(prompt('ลดจำนวนเท่าไหร่?','1')); if(!Number.isFinite(val)) return; await remoteAdjustQty(id,-Math.abs(val)); } else if(act==='edit'){ editingId=id; openModal('แก้ไขรายการ',it); return; } else if(act==='del'){ if(confirm(`ยืนยันการลบ "${it.name}" ?`)){ await remoteDeleteItem(id); } else { return; } } await remoteLoadItems(); }catch(err){ alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว'); console.error(err); }
   });
 
   [search,filterCategory,sortBy,lowStockThresholdInput].forEach(el=>{ el.addEventListener('input',renderTable); el.addEventListener('change',renderTable); });
