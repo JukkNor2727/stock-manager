@@ -162,9 +162,30 @@
         <button id="btnSave" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">บันทึก</button>
       </div>
     </div>
-  </div>
+</div>
 
-  <script>
+<!-- Quick Adjust Modal -->
+<div id="adjustModal" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
+  <div class="w-full max-w-md bg-white rounded-2xl p-5 shadow-smooth">
+    <h3 id="adjustTitle" class="text-xl font-bold mb-3">ปรับจำนวน</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="text-sm text-slate-600">จำนวน (+ เพิ่ม / - ลด)</label>
+        <input id="adjValue" type="number" step="any" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="เช่น +3 หรือ -2" />
+      </div>
+      <div>
+        <label class="text-sm text-slate-600">ชื่อผู้แก้ไข</label>
+        <input id="adjWho" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="ระบุชื่อผู้แก้ไข" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="adjCancel" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">ยกเลิก</button>
+      <button id="adjConfirm" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<script>
   // ===== Utils (Status Bar) =====
   function setStatus(msg,type='info'){
     const el=document.getElementById('statusBar');
@@ -207,6 +228,14 @@
   const btnCancel=document.getElementById('btnCancel');
   const btnSave=document.getElementById('btnSave');
   const btnTestLoad=document.getElementById('btnTestLoad');
+  // Quick Adjust modal elements
+  const adjustModal=document.getElementById('adjustModal');
+  const adjustTitle=document.getElementById('adjustTitle');
+  const adjValue=document.getElementById('adjValue');
+  const adjWho=document.getElementById('adjWho');
+  const adjCancel=document.getElementById('adjCancel');
+  const adjConfirm=document.getElementById('adjConfirm');
+  let adjustCtx=null; // {id,name,sign:+1|-1}
   let editingId=null;
 
   // ===== Renderers =====
@@ -239,7 +268,7 @@
   function validateForm(){ if(!fName.value.trim()){ alert('กรุณากรอกชื่อสินค้า'); return false;} if(fQty.value===''||isNaN(Number(fQty.value))){ alert('กรุณากรอกจำนวนให้ถูกต้อง'); return false;} if(fPrice.value!==''&&isNaN(Number(fPrice.value))){ alert('ราคาต้องเป็นตัวเลข'); return false;} return true; }
 
   // ===== Google Sheets API Bridge =====
-  const API_URL='https://script.google.com/macros/s/AKfycbwvjq63SL_RazdkGrKHLmc4KGbgwtXwxIAdRu6IichY-yel9pku56XJqUl0GN4f2Kk/exec';
+  const API_URL='https://script.google.com/macros/s/AKfycbwSxkQrYOn6cjx-9iS6Z3STt4PRYmd-h-sWqXQHGsLFKC8ExjT3iBYmVnkABzWCIkR8/exec';
   const API_KEY=''; // ถ้าตั้งใน Apps Script ให้ใส่ให้ตรงกัน
   async function apiGet(params){
     const q=new URLSearchParams({ ...(API_KEY?{key:API_KEY}:{}) , ...params }).toString();
@@ -268,6 +297,62 @@
 
   tbody.addEventListener('click', async (e)=>{
     const t=e.target.closest('button'); if(!t) return;
+    const id=t.getAttribute('data-id');
+    const act=t.getAttribute('data-act');
+    const idx=items.findIndex(i=>i.id===id); if(idx===-1) return;
+    const it=items[idx];
+    try{
+      if(act==='inc' || act==='dec'){
+        // open quick adjust modal
+        adjustCtx={ id, name: it.name, sign: (act==='inc'? +1 : -1) };
+        adjustTitle.textContent = act==='inc' ? 'เพิ่มจำนวน' : 'ลดจำนวน';
+        adjValue.value = adjustCtx.sign>0 ? '1' : '-1';
+        adjWho.value = '';
+        adjustModal.classList.remove('hidden');
+        adjustModal.classList.add('flex');
+        setTimeout(()=>adjValue.focus(),50);
+        return;
+      } else if(act==='edit'){
+        editingId=id; openModal('แก้ไขรายการ', it); return;
+      } else if(act==='del'){
+        if(confirm(`ยืนยันการลบ "${it.name}" ?`)){
+          await remoteDeleteItem(id);
+          const who=prompt('ชื่อผู้แก้ไข?','');
+          addHistory('ลบรายการ', it.name, who?`(${who})`:'' );
+        } else { return; }
+      }
+      await remoteLoadItems();
+    } catch(err){
+      alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว');
+      console.error(err);
+    }
+  });
+
+  // Quick adjust handlers
+  function closeAdjust(){ adjustModal.classList.add('hidden'); adjustModal.classList.remove('flex'); }
+  adjCancel.addEventListener('click', ()=> closeAdjust());
+  adjConfirm.addEventListener('click', async ()=>{
+    if(!adjustCtx) return closeAdjust();
+    const raw = Number(adjValue.value || '0');
+    if(!Number.isFinite(raw) || raw===0){ alert('กรุณากรอกจำนวนที่ถูกต้อง (เช่น 3 หรือ -2)'); return; }
+    const delta = adjustCtx.sign>0 ? Math.abs(raw) : -Math.abs(raw);
+    const who = (adjWho.value || '').trim();
+    try{
+      await remoteAdjustQty(adjustCtx.id, delta);
+      addHistory(delta>=0?'เพิ่มจำนวน':'ลดจำนวน', adjustCtx.name, `${delta>0?'+':''}${delta}${who?` (${who})`:''}`);
+      await remoteLoadItems();
+    }catch(err){
+      alert('เชื่อมชีตไม่สำเร็จ ลองใหม่อีกครั้ง');
+      console.error(err);
+    } finally { closeAdjust(); adjustCtx=null; }
+  });
+
+  // Close modal on ESC
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape'){
+      if(!adjustModal.classList.contains('hidden')) closeAdjust();
+    }
+  }); if(!t) return;
     const id=t.getAttribute('data-id');
     const act=t.getAttribute('data-act');
     const idx=items.findIndex(i=>i.id===id); if(idx===-1) return;
