@@ -1,45 +1,500 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - Stock Manager</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — ระบบจัดการสต๊อกของ (Offline/Local)</title>
+  <!-- TailwindCSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter", "Noto Sans Thai", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Ubuntu", "Cantarell", "Noto Sans", "Helvetica Neue", "Arial", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Prompt', sans-serif; }
+    /* สไตล์เสริมเล็กน้อยให้ดูพรีเมียมขึ้น */
+    .glass { backdrop-filter: blur(8px); background: rgba(255,255,255,0.6); }
+    .shadow-smooth { box-shadow: 0 10px 30px rgba(0,0,0,.08); }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-100 to-white">
-  <div class="w-full max-w-sm bg-white rounded-xl shadow-lg p-8">
-    <h2 class="text-2xl font-bold text-center text-teal-700 mb-6">🔐 เข้าสู่ระบบ</h2>
-    <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-600">ชื่อผู้ใช้</label>
-        <input type="text" id="username" required class="mt-1 w-full border rounded p-2 focus:outline-none focus:ring" />
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <header class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-6">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">StockFlow <span class="text-indigo-600">Lite</span></h1>
+        <p class="text-slate-600 mt-1">เว็บจัดการสต๊อกของแบบง่ายๆ ใช้งานออฟไลน์ได้ด้วย LocalStorage — เหมาะสำหรับร้านเล็ก โครงการ และห้องแลบ</p>
       </div>
-      <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-lg shadow">เข้าสู่ระบบ</button>
-      <p id="errorMsg" class="text-center text-red-600 text-sm mt-4 hidden">❌ กรุณากรอกชื่อผู้ใช้</p>
-    </form>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnAdd" class="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-smooth">+ เพิ่มรายการ</button>
+        <label class="cursor-pointer px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">
+          นำเข้า JSON
+          <input id="fileImportJson" type="file" accept="application/json" class="hidden">
+        </label>
+        <button id="btnExportJson" class="px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">ส่งออก JSON</button>
+        <button id="btnExportCsv" class="px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">ส่งออก CSV</button>
+      </div>
+    </header>
+
+    <!-- Toolbar / Filters -->
+    <section class="glass rounded-3xl p-4 md:p-5 border border-white/60 shadow-smooth">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="md:col-span-2">
+          <label class="text-sm text-slate-600">ค้นหา</label>
+          <input id="search" type="text" placeholder="พิมพ์ชื่อสินค้า, SKU, บาร์โค้ด..." class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">หมวดหมู่</label>
+          <select id="filterCategory" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">จัดเรียง</label>
+          <select id="sortBy" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="name">ชื่อ (ก-ฮ)</option>
+            <option value="qty">จำนวน (มาก→น้อย)</option>
+            <option value="updatedAt">อัปเดตล่าสุด</option>
+            <option value="sku">SKU</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">เตือนเมื่อเหลือน้อยกว่า</label>
+          <input id="lowStockThreshold" type="number" min="0" value="5" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="mt-6 bg-white rounded-3xl border border-slate-200 shadow-smooth overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-700">
+            <tr>
+              <th class="px-4 py-3 text-left">ชื่อ</th>
+              <th class="px-4 py-3 text-left">SKU</th>
+              <th class="px-4 py-3 text-left">หมวดหมู่</th>
+              <th class="px-4 py-3 text-right">ราคา/หน่วย</th>
+              <th class="px-4 py-3 text-center">ปรับ</th>
+              <th class="px-4 py-3 text-right">คงเหลือ</th>
+              <th class="px-4 py-3 text-left">หน่วย</th>
+              <th class="px-4 py-3 text-left">หมายเหตุ</th>
+              <th class="px-4 py-3 text-left">อัปเดต</th>
+              <th class="px-4 py-3">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Edit History -->
+    <section class="mt-6">
+      <h2 class="text-lg font-semibold mb-2">ประวัติการแก้ไข</h2>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-smooth overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-700">
+              <tr>
+                <th class="px-4 py-3 text-left">เวลา</th>
+                <th class="px-4 py-3 text-left">เหตุการณ์</th>
+                <th class="px-4 py-3 text-left">สินค้า</th>
+                <th class="px-4 py-3 text-left">หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div>
+
+  <!-- Modal -->
+  <div id="modal" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
+    <div class="w-full max-w-2xl bg-white rounded-2xl p-5 shadow-smooth">
+      <h3 id="modalTitle" class="text-xl font-bold">เพิ่มรายการ</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label class="text-sm text-slate-600">ชื่อสินค้า</label>
+          <input id="fName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">SKU/บาร์โค้ด</label>
+          <input id="fSku" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">หมวดหมู่</label>
+          <input id="fCategory" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="เช่น อาหาร, เคมีภัณฑ์, อุปกรณ์" />
+        </div>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <label class="text-sm text-slate-600">คงเหลือ</label>
+            <input id="fQty" type="number" step="any" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+          </div>
+          <div class="w-32">
+            <label class="text-sm text-slate-600">หน่วย</label>
+            <input id="fUnit" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="ชิ้น, กรัม, มล." />
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">ราคา/หน่วย</label>
+          <input id="fPrice" type="number" step="any" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-sm text-slate-600">หมายเหตุ</label>
+          <textarea id="fNote" rows="2" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="btnCancel" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">ยกเลิก</button>
+        <button id="btnSave" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    function handleLogin(e) {
-      e.preventDefault();
-      const user = username.value.trim();
-      google.script.run
-        .withSuccessHandler(isOk => {
-          if (isOk) {
-            sessionStorage.setItem('loggedInUser', user);
-            localStorage.setItem('currentUser', user);
-            google.script.run.withSuccessHandler(url => window.top.location.href = url).getHomeUrl();
-          } else {
-            document.getElementById('errorMsg').classList.remove('hidden');
-          }
-        })
-        .checkLogin(user);
+    // ====== Data Layer ======
+    const LS_KEY = 'stockflow-lite-v1';
+    const LS_HISTORY_KEY = 'stockflow-lite-history-v1';
+
+    /** @type {Array<{id:string,name:string,sku:string,category:string,qty:number,unit:string,price:number,note:string,updatedAt:number}>} */
+    let items = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+    let history = JSON.parse(localStorage.getItem(LS_HISTORY_KEY) || '[]');
+
+    function uid() { return Math.random().toString(36).slice(2, 10); }
+
+    function saveAll() {
+      localStorage.setItem(LS_KEY, JSON.stringify(items));
+      localStorage.setItem(LS_HISTORY_KEY, JSON.stringify(history));
     }
+
+    function addHistory(action, itemName, note = '') {
+      history.unshift({ ts: Date.now(), action, item: itemName, note });
+      if (history.length > 1000) history.pop();
+      saveAll();
+      renderHistory();
+    }
+
+    // ====== UI Elements ======
+    const tbody = document.getElementById('tbody');
+    const historyBody = document.getElementById('historyBody');
+
+    const search = document.getElementById('search');
+    const filterCategory = document.getElementById('filterCategory');
+    const sortBy = document.getElementById('sortBy');
+    const lowStockThresholdInput = document.getElementById('lowStockThreshold');
+
+    const btnAdd = document.getElementById('btnAdd');
+    const btnExportJson = document.getElementById('btnExportJson');
+    const btnExportCsv = document.getElementById('btnExportCsv');
+    const fileImportJson = document.getElementById('fileImportJson');
+
+    // Modal elements
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modalTitle');
+    const fName = document.getElementById('fName');
+    const fSku = document.getElementById('fSku');
+    const fCategory = document.getElementById('fCategory');
+    const fQty = document.getElementById('fQty');
+    const fUnit = document.getElementById('fUnit');
+    const fPrice = document.getElementById('fPrice');
+    const fNote = document.getElementById('fNote');
+    const btnCancel = document.getElementById('btnCancel');
+    const btnSave = document.getElementById('btnSave');
+
+    let editingId = null;
+
+    // ====== Render Functions ======
+    function renderCategoryFilter() {
+      const cats = Array.from(new Set(items.map(i => i.category).filter(Boolean)));
+      filterCategory.innerHTML = '<option value="">ทั้งหมด</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+    function renderTable() {
+      const q = search.value.toLowerCase();
+      const cat = filterCategory.value;
+      const sortKey = sortBy.value;
+      const lowStockThreshold = Number(lowStockThresholdInput.value || 0);
+
+      let rows = items
+        .filter(i => {
+          const matchText = (
+            i.name.toLowerCase().includes(q) ||
+            i.sku.toLowerCase().includes(q) ||
+            i.note.toLowerCase().includes(q)
+          );
+          const matchCat = cat ? i.category === cat : true;
+          return matchText && matchCat;
+        })
+        .sort((a, b) => {
+          if (sortKey === 'name') return a.name.localeCompare(b.name, 'th');
+          if (sortKey === 'qty') return b.qty - a.qty;
+          if (sortKey === 'updatedAt') return b.updatedAt - a.updatedAt;
+          if (sortKey === 'sku') return a.sku.localeCompare(b.sku, 'th');
+          return 0;
+        })
+        .map(i => {
+          const low = i.qty < lowStockThreshold;
+          const trClass = low ? 'bg-red-50/60' : '';
+          const updatedStr = new Date(i.updatedAt).toLocaleString('th-TH');
+          return `
+            <tr class="${trClass}">
+              <td class="px-4 py-3 whitespace-nowrap font-medium">${escapeHtml(i.name)}</td>
+              <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(i.sku)}</td>
+              <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(i.category || '')}</td>
+              <td class="px-4 py-3 text-right">${formatNumber(i.price)}</td>
+              <td class="px-4 py-3">
+                <div class="flex items-center justify-center gap-2">
+                  <button data-act="dec" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white">-</button>
+                  <button data-act="inc" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">+</button>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-right tabular-nums">${formatNumber(i.qty)}</td>
+              <td class="px-4 py-3">${escapeHtml(i.unit || '')}</td>
+              <td class="px-4 py-3 max-w-[18rem] truncate" title="${escapeHtml(i.note || '')}">${escapeHtml(i.note || '')}</td>
+              <td class="px-4 py-3 whitespace-nowrap">${updatedStr}</td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex items-center gap-2">
+                  <button data-act="edit" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">แก้ไข</button>
+                  <button data-act="del" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200">ลบ</button>
+                </div>
+              </td>
+            </tr>`;
+        })
+        .join('');
+
+      tbody.innerHTML = rows || `<tr><td colspan="10" class="px-4 py-6 text-center text-slate-500">ยังไม่มีข้อมูล ลองกด "+ เพิ่มรายการ" ได้เลย</td></tr>`;
+    }
+
+    function renderHistory() {
+      historyBody.innerHTML = history
+        .map(h => {
+          const ts = new Date(h.ts).toLocaleString('th-TH');
+          return `<tr>
+            <td class="px-4 py-3 whitespace-nowrap">${ts}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(h.action)}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(h.item)}</td>
+            <td class="px-4 py-3">${escapeHtml(h.note || '')}</td>
+          </tr>`;
+        })
+        .join('');
+    }
+
+    // ====== Helpers ======
+    function escapeHtml(str = '') {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+    function formatNumber(n) {
+      if (n === undefined || n === null || n === '') return '';
+      const num = Number(n);
+      return Number.isFinite(num) ? num.toLocaleString('th-TH') : '';
+    }
+
+    function openModal(title = 'เพิ่มรายการ', data = null) {
+      modalTitle.textContent = title;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      if (data) {
+        fName.value = data.name || '';
+        fSku.value = data.sku || '';
+        fCategory.value = data.category || '';
+        fQty.value = data.qty ?? '';
+        fUnit.value = data.unit || '';
+        fPrice.value = data.price ?? '';
+        fNote.value = data.note || '';
+      } else {
+        fName.value = fSku.value = fCategory.value = fUnit.value = fNote.value = '';
+        fQty.value = fPrice.value = '';
+      }
+      setTimeout(() => fName.focus(), 50);
+    }
+    function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+
+    function validateForm() {
+      if (!fName.value.trim()) { alert('กรุณากรอกชื่อสินค้า'); return false; }
+      if (fQty.value === '' || isNaN(Number(fQty.value))) { alert('กรุณากรอกจำนวนให้ถูกต้อง'); return false; }
+      if (fPrice.value !== '' && isNaN(Number(fPrice.value))) { alert('ราคาต้องเป็นตัวเลข'); return false; }
+      return true;
+    }
+
+    // ====== Event Handlers ======
+    btnAdd.addEventListener('click', () => { editingId = null; openModal('เพิ่มรายการ'); });
+    btnCancel.addEventListener('click', closeModal);
+
+    btnSave.addEventListener('click', () => {
+      if (!validateForm()) return;
+      const payload = {
+        name: fName.value.trim(),
+        sku: fSku.value.trim(),
+        category: fCategory.value.trim(),
+        qty: Number(fQty.value || 0),
+        unit: fUnit.value.trim(),
+        price: Number(fPrice.value || 0),
+        note: fNote.value.trim(),
+        updatedAt: Date.now(),
+      };
+
+      if (editingId) {
+        const idx = items.findIndex(x => x.id === editingId);
+        if (idx > -1) {
+          const old = items[idx];
+          items[idx] = { ...old, ...payload };
+          addHistory('แก้ไขข้อมูล', payload.name);
+        }
+      } else {
+        items.unshift({ id: uid(), ...payload });
+        addHistory('เพิ่มรายการ', payload.name);
+      }
+      saveAll();
+      renderCategoryFilter();
+      renderTable();
+      closeModal();
+    });
+
+    tbody.addEventListener('click', (e) => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      const id = t.getAttribute('data-id');
+      const act = t.getAttribute('data-act');
+      const idx = items.findIndex(i => i.id === id);
+      if (idx === -1) return;
+      const it = items[idx];
+
+      if (act === 'inc') {
+        const val = Number(prompt('เพิ่มจำนวนเท่าไหร่?', '1'));
+        if (!Number.isFinite(val)) return;
+        items[idx].qty = (Number(it.qty) || 0) + val;
+        items[idx].updatedAt = Date.now();
+        saveAll();
+        addHistory('เพิ่มจำนวน', it.name, `+${val}`);
+        renderTable();
+      }
+      if (act === 'dec') {
+        const val = Number(prompt('ลดจำนวนเท่าไหร่?', '1'));
+        if (!Number.isFinite(val)) return;
+        items[idx].qty = Math.max(0, (Number(it.qty) || 0) - val);
+        items[idx].updatedAt = Date.now();
+        saveAll();
+        addHistory('ลดจำนวน', it.name, `-${val}`);
+        renderTable();
+      }
+      if (act === 'edit') {
+        editingId = id;
+        openModal('แก้ไขรายการ', it);
+      }
+      if (act === 'del') {
+        if (confirm(`ยืนยันการลบ "${it.name}" ?`)) {
+          items.splice(idx, 1);
+          saveAll();
+          addHistory('ลบรายการ', it.name);
+          renderCategoryFilter();
+          renderTable();
+        }
+      }
+    });
+
+    [search, filterCategory, sortBy, lowStockThresholdInput].forEach(el => {
+      el.addEventListener('input', renderTable);
+      el.addEventListener('change', renderTable);
+    });
+
+    // ====== Import / Export ======
+    btnExportJson.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `stockflow-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    btnExportCsv.addEventListener('click', () => {
+      const header = ['name','sku','category','qty','unit','price','note','updatedAt'];
+      const lines = [header.join(',')].concat(items.map(i => header.map(k => csvCell(i[k])).join(',')));
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `stockflow-${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    function csvCell(v) {
+      if (v === null || v === undefined) return '""';
+      const s = String(v).replaceAll('"', '""');
+      return `"${s}"`;
+    }
+
+    fileImportJson.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data)) throw new Error('โครงสร้างไฟล์ไม่ถูกต้อง');
+          // map/normalize
+          const now = Date.now();
+          items = data.map(d => ({
+            id: d.id || uid(),
+            name: String(d.name || '').trim(),
+            sku: String(d.sku || '').trim(),
+            category: String(d.category || '').trim(),
+            qty: Number(d.qty || 0),
+            unit: String(d.unit || '').trim(),
+            price: Number(d.price || 0),
+            note: String(d.note || '').trim(),
+            updatedAt: Number(d.updatedAt || now)
+          })).filter(x => x.name);
+          addHistory('นำเข้า JSON', `${items.length} รายการ`);
+          saveAll();
+          renderCategoryFilter();
+          renderTable();
+          alert('นำเข้าสำเร็จ');
+        } catch (err) {
+          alert('ไม่สามารถอ่านไฟล์ได้: ' + err.message);
+        }
+        fileImportJson.value = '';
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    // ====== Init ======
+    function seedIfEmpty() {
+      if (items.length) return;
+      const now = Date.now();
+      items = [
+        { id: uid(), name: 'ปากกาเจล 0.5', sku: 'PEN-GL05', category: 'เครื่องเขียน', qty: 24, unit: 'ด้าม', price: 12, note: 'สีน้ำเงิน', updatedAt: now },
+        { id: uid(), name: 'ถุงซิป 6x8"', sku: 'ZIP-68', category: 'บรรจุภัณฑ์', qty: 180, unit: 'ใบ', price: 0.5, note: '', updatedAt: now },
+        { id: uid(), name: 'เอทานอล 95%', sku: 'EtOH-95', category: 'เคมีภัณฑ์', qty: 8, unit: 'ลิตร', price: 75, note: 'สำหรับทำความสะอาด', updatedAt: now },
+      ];
+      saveAll();
+    }
+
+    function boot() {
+      seedIfEmpty();
+      renderCategoryFilter();
+      renderTable();
+      renderHistory();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    });
+
+    boot();
   </script>
 </body>
 </html>
