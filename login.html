@@ -332,8 +332,8 @@
     }
 
     // ====== Google Sheets API Bridge ======
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwSxkQrYOn6cjx-9iS6Z3STt4PRYmd-h-sWqXQHGsLFKC8ExjT3iBYmVnkABzWCIkR8/exec';
-  const API_KEY = 'change-me-12345'; // ถ้าใน Apps Script เปิดตรวจ key ให้ใส่ค่าให้ตรงกัน
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzIUWpzgt-Ia-0ie4Qs-piJppLhfmLrzuD7dZix7IaHjQ-hfpuyOl9um7WYdkbCiCb0/exec';
+  const API_KEY = '1'; // ถ้าใน Apps Script เปิดตรวจ key ให้ใส่ค่าให้ตรงกัน
 
   async function apiGet(params){
     const q = new URLSearchParams({ key: API_KEY, ...params }).toString();
@@ -611,3 +611,4 @@
   </script>
 </body>
 </html>
+
