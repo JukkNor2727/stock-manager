@@ -36,6 +36,7 @@
         <p class="text-slate-600 mt-1">เว็บจัดการสต๊อกของแบบง่ายๆ ใช้งานออฟไลน์ได้ด้วย LocalStorage — เหมาะสำหรับร้านเล็ก โครงการ และห้องแลบ</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
+        <button id="btnTestLoad" class="px-3 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-smooth">ทดสอบโหลดจากชีต</button>
         <button id="btnAdd" class="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-smooth">+ เพิ่มรายการ</button>
         <label class="cursor-pointer px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">
           นำเข้า JSON
@@ -333,7 +334,7 @@
     }
 
     // ====== Google Sheets API Bridge ======
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwSxkQrYOn6cjx-9iS6Z3STt4PRYmd-h-sWqXQHGsLFKC8ExjT3iBYmVnkABzWCIkR8/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwvjq63SL_RazdkGrKHLmc4KGbgwtXwxIAdRu6IichY-yel9pku56XJqUl0GN4f2Kk/exec';
   const API_KEY = ''; // ถ้าใน Apps Script เปิดตรวจ key ให้ใส่ค่าให้ตรงกัน
 
   async function apiGet(params){
@@ -632,6 +633,23 @@
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
     });
+
+    // ปุ่มทดสอบโหลดจากชีต
+    const btnTestLoad = document.getElementById('btnTestLoad');
+    if (btnTestLoad){
+      btnTestLoad.addEventListener('click', async ()=>{
+        try{
+          const r = await apiGet({ action:'list' });
+          alert('รายการที่ได้จากชีต: ' + (r.items?.length ?? 0));
+        }catch(err){
+          alert('เรียก API ไม่สำเร็จ: ' + err.message);
+        }
+      });
+    }
+
+    // จับ error ทั้งหน้าให้โชว์ที่ status bar
+    window.addEventListener('error', (e)=>{ try{ setStatus('❌ JS error: '+ e.message, 'error'); }catch(_){} });
+    window.addEventListener('unhandledrejection', (e)=>{ try{ setStatus('❌ Promise error: '+ (e.reason?.message||e.reason||'unknown'), 'error'); }catch(_){} });
 
     boot();
   </script>
