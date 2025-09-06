@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>StockFlow Lite — เชื่อม Google Sheet</title>
-  <!-- TailwindCSS CDN (สะดวกสำหรับ GitHub Pages) -->
+  <title>StockFlow Lite — Multi‑Sheet</title>
+  <!-- TailwindCSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -28,13 +28,18 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-800">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
-    <header class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-6">
+    <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
       <div>
-        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">StockFlow <span class="text-indigo-600">Lite</span></h1>
-        <p class="text-slate-600 mt-1">เว็บจัดการสต๊อกของแบบง่ายๆ เชื่อม Google Sheet และทำงานออฟไลน์ได้ด้วย LocalStorage</p>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">StockFlow <span class="text-indigo-600">Lite</span> <span class="text-slate-400 text-xl">— Multi‑Sheet</span></h1>
+        <p class="text-slate-600 mt-1">เชื่อม Google Sheet หลายชีตในสเปรดชีตเดียว (หรือหลายไฟล์) + ทำงานออฟไลน์ได้</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button id="btnTestLoad" class="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-smooth">ทดสอบโหลดจากชีต</button>
+        <!-- Sheet selector -->
+        <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-smooth">
+          <span class="text-sm text-slate-600">เลือกชีต</span>
+          <select id="sheetSelect" class="rounded-xl border border-slate-200 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+        </div>
+        <button id="btnTestLoad" class="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-smooth">ทดสอบโหลด</button>
         <button id="btnAdd" class="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-smooth">+ เพิ่มรายการ</button>
         <label class="cursor-pointer px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">
           นำเข้า JSON
@@ -191,6 +196,13 @@
   </div>
 
   <script>
+  // ===== Config =====
+  // รายชื่อชีตที่ต้องการใช้งาน (ชื่อจะต้องตรงกับใน Google Sheet)
+  const CONFIG_SHEETS = [
+    { label: 'Chemical Stock Data', name: 'Chemical Stock Data' },
+    { label: 'Stock รายการอุปกรณ์ RD', name: 'Stock รายการอุปกรณ์ RD' },
+  ];
+
   // ===== Utils (Status Bar) =====
   function setStatus(msg,type='info'){
     const el=document.getElementById('statusBar');
@@ -201,14 +213,33 @@
     else { el.classList.add('bg-yellow-50','border-yellow-200','text-yellow-800'); }
   }
 
-  // ===== Data Layer (Local Cache) =====
-  const LS_KEY='stockflow-lite-v1';
-  const LS_HISTORY_KEY='stockflow-lite-history-v1';
-  let items=JSON.parse(localStorage.getItem(LS_KEY)||'[]');
-  let history=JSON.parse(localStorage.getItem(LS_HISTORY_KEY)||'[]');
-  function uid(){ return Math.random().toString(36).slice(2,10); }
-  function saveAll(){ localStorage.setItem(LS_KEY,JSON.stringify(items)); localStorage.setItem(LS_HISTORY_KEY,JSON.stringify(history)); }
-  function addHistory(action,itemName,note=''){ history.unshift({ts:Date.now(),action,item:itemName,note}); if(history.length>1000) history.pop(); saveAll(); renderHistory(); }
+  // ===== Data Layer (Local Cache per-sheet) =====
+  const LS_SELECTED_SHEET_KEY = 'stockflow-lite-selected-sheet';
+  const LS_BASE_ITEMS = 'stockflow-lite-items';
+  const LS_BASE_HISTORY = 'stockflow-lite-history';
+
+  const sheetSelect = document.getElementById('sheetSelect');
+  let selectedSheet = localStorage.getItem(LS_SELECTED_SHEET_KEY) || (CONFIG_SHEETS[0]?.name || 'Sheet1');
+
+  function itemsKey(){ return `${LS_BASE_ITEMS}::${selectedSheet}`; }
+  function historyKey(){ return `${LS_BASE_HISTORY}::${selectedSheet}`; }
+
+  let items = [];
+  let history = [];
+
+  function loadLocal(){
+    items = JSON.parse(localStorage.getItem(itemsKey())||'[]');
+    history = JSON.parse(localStorage.getItem(historyKey())||'[]');
+  }
+  function saveAll(){
+    localStorage.setItem(itemsKey(), JSON.stringify(items));
+    localStorage.setItem(historyKey(), JSON.stringify(history));
+  }
+  function addHistory(action,itemName,note=''){
+    history.unshift({ts:Date.now(),action,item:itemName,note});
+    if(history.length>1000) history.pop();
+    saveAll(); renderHistory();
+  }
 
   // ===== Elements =====
   const tbody=document.getElementById('tbody');
@@ -263,10 +294,10 @@
         return matchText && matchCat;
       })
       .sort((a,b)=>{
-        if(sortKey==='name') return a.name.localeCompare(b.name,'th');
-        if(sortKey==='qty') return b.qty-a.qty;
-        if(sortKey==='updatedAt') return b.updatedAt-a.updatedAt;
-        if(sortKey==='sku') return a.sku.localeCompare(b.sku,'th');
+        if(sortKey==='name') return (a.name||'').localeCompare(b.name||'', 'th');
+        if(sortKey==='qty') return (b.qty||0)-(a.qty||0);
+        if(sortKey==='updatedAt') return (b.updatedAt||0)-(a.updatedAt||0);
+        if(sortKey==='sku') return (a.sku||'').localeCompare(b.sku||'', 'th');
         return 0;
       })
       .map(i=>{
@@ -326,9 +357,9 @@
   const API_URL='https://script.google.com/macros/s/AKfycbwvjq63SL_RazdkGrKHLmc4KGbgwtXwxIAdRu6IichY-yel9pku56XJqUl0GN4f2Kk/exec';
   const API_KEY=''; // ถ้าตั้งใน Apps Script ให้ใส่ให้ตรงกัน
   async function apiGet(params){
-    const q=new URLSearchParams({ ...(API_KEY?{key:API_KEY}:{}) , ...params }).toString();
+    const q=new URLSearchParams({ ...(API_KEY?{key:API_KEY}:{}) , sheet: selectedSheet, ...params }).toString();
     const url=`${API_URL}?${q}`;
-    setStatus(`เรียก API: ${url}`);
+    setStatus(`ชีต: ${selectedSheet} → เรียก API: ${url}`);
     let res;
     try{ res=await fetch(url,{method:'GET',mode:'cors',cache:'no-store'}); }
     catch(err){ setStatus('❌ Failed to fetch: '+err.message,'error'); throw err; }
@@ -345,6 +376,27 @@
   async function remoteImport(arr){ const r=await apiGet({action:'import', data:JSON.stringify(arr)}); if(!r.ok) throw new Error(r.error||'import-failed'); return r; }
 
   // ===== Events =====
+  // เติมตัวเลือกชีตใน select
+  function renderSheetOptions(){
+    sheetSelect.innerHTML = CONFIG_SHEETS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.label)}</option>`).join('');
+    // ถ้า selectedSheet ไม่มีใน CONFIG ให้ใส่เพิ่มชั่วคราว
+    if(!CONFIG_SHEETS.find(s=>s.name===selectedSheet)){
+      const opt = document.createElement('option');
+      opt.value = selectedSheet; opt.textContent = selectedSheet + ' (จากค่าเดิม)';
+      sheetSelect.appendChild(opt);
+    }
+    sheetSelect.value = selectedSheet;
+  }
+
+  sheetSelect.addEventListener('change', async ()=>{
+    selectedSheet = sheetSelect.value;
+    localStorage.setItem(LS_SELECTED_SHEET_KEY, selectedSheet);
+    // โหลด cache เฉพาะชีต
+    loadLocal();
+    renderCategoryFilter(); renderTable(); renderHistory();
+    try{ await remoteLoadItems(); } catch(err){ console.warn('โหลดจากชีตไม่สำเร็จ ใช้ cache ออฟไลน์แทน:', err); }
+  });
+
   btnAdd.addEventListener('click',()=>{ editingId=null; openModal('เพิ่มรายการ'); });
   btnCancel.addEventListener('click',()=>{ closeModal(); });
   btnSave.addEventListener('click', async ()=>{
@@ -375,7 +427,7 @@
     }
   });
 
-  // ✅ เหลือฟังค์ชันเดียวสำหรับจัดการคลิกในตาราง
+  // คลิกในตาราง
   tbody.addEventListener('click', async (e)=>{
     const t=e.target.closest('button'); if(!t) return;
     const id=t.getAttribute('data-id');
@@ -437,7 +489,7 @@
     const blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url;
-    a.download=`stockflow-${new Date().toISOString().slice(0,10)}.json`;
+    a.download=`${selectedSheet}-stockflow-${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   });
   btnExportCsv.addEventListener('click',()=>{
@@ -446,7 +498,7 @@
     const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url;
-    a.download=`stockflow-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download=`${selectedSheet}-stockflow-${new Date().toISOString().slice(0,10)}.csv`;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   });
   function csvCell(v){ if(v===null||v===undefined) return '""'; const s=String(v).replaceAll('"','""'); return `"${s}"`; }
@@ -470,6 +522,7 @@
   window.addEventListener('unhandledrejection',(e)=>{ setStatus('❌ Promise error: '+(e.reason?.message||e.reason||'unknown'),'error'); });
 
   // Seed (offline first run)
+  function uid(){ return Math.random().toString(36).slice(2,10); }
   function seedIfEmpty(){
     if(items.length) return;
     const now=Date.now();
@@ -482,12 +535,14 @@
   }
 
   async function boot(){
+    renderSheetOptions();
+    loadLocal();
+    if(!items.length) seedIfEmpty();
+    renderCategoryFilter(); renderTable(); renderHistory();
     try{
       await remoteLoadItems();
     }catch(err){
       console.warn('โหลดจากชีตไม่สำเร็จ ใช้ cache ออฟไลน์แทน:',err);
-      if(!items.length) seedIfEmpty();
-      renderCategoryFilter(); renderTable(); renderHistory();
     }
   }
 
@@ -495,7 +550,7 @@
     btnTestLoad.addEventListener('click', async ()=>{
       try{
         const r=await apiGet({action:'list'});
-        alert('รายการที่ได้จากชีต: '+(r.items?.length ?? 0));
+        alert(`[${selectedSheet}] รายการที่ได้จากชีต: `+(r.items?.length ?? 0));
       }catch(err){
         alert('เรียก API ไม่สำเร็จ: '+err.message);
       }
