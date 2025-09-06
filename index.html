@@ -1,13 +1,295 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8">
-  <title>Redirecting…</title>
-  <!-- ส่งไปหน้า login ทันที -->
-  <meta http-equiv="refresh" content="0; url=login.html">
-  <script>location.replace('login.html');</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — เชื่อม Google Sheet</title>
+  <!-- TailwindCSS CDN (สะดวกสำหรับ GitHub Pages) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ["Inter", "Noto Sans Thai", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Ubuntu", "Cantarell", "Noto Sans", "Helvetica Neue", "Arial", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .glass { backdrop-filter: blur(8px); background: rgba(255,255,255,0.6); }
+    .shadow-smooth { box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  </style>
 </head>
-<body>
-  กำลังพาไปหน้าเข้าสู่ระบบ… หากไม่ถูกพาไป <a href="login.html">คลิกที่นี่</a>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <header class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-6">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">StockFlow <span class="text-indigo-600">Lite</span></h1>
+        <p class="text-slate-600 mt-1">เว็บจัดการสต๊อกของแบบง่ายๆ เชื่อม Google Sheet และทำงานออฟไลน์ได้ด้วย LocalStorage</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnTestLoad" class="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-smooth">ทดสอบโหลดจากชีต</button>
+        <button id="btnAdd" class="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-smooth">+ เพิ่มรายการ</button>
+        <label class="cursor-pointer px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">
+          นำเข้า JSON
+          <input id="fileImportJson" type="file" accept="application/json" class="hidden">
+        </label>
+        <button id="btnExportJson" class="px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">ส่งออก JSON</button>
+        <button id="btnExportCsv" class="px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium shadow-smooth">ส่งออก CSV</button>
+      </div>
+    </header>
+
+    <!-- Status Bar -->
+    <div id="statusBar" class="hidden w-full px-4 py-2 mb-4 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm"></div>
+
+    <!-- Toolbar / Filters -->
+    <section class="glass rounded-3xl p-4 md:p-5 border border-white/60 shadow-smooth">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="md:col-span-2">
+          <label class="text-sm text-slate-600">ค้นหา</label>
+          <input id="search" type="text" placeholder="พิมพ์ชื่อสินค้า, SKU, บาร์โค้ด..." class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">หมวดหมู่</label>
+          <select id="filterCategory" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">จัดเรียง</label>
+          <select id="sortBy" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="name">ชื่อ (ก-ฮ)</option>
+            <option value="qty">จำนวน (มาก→น้อย)</option>
+            <option value="updatedAt">อัปเดตล่าสุด</option>
+            <option value="sku">SKU</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">เตือนเมื่อเหลือน้อยกว่า</label>
+          <input id="lowStockThreshold" type="number" min="0" value="5" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="mt-6 bg-white rounded-3xl border border-slate-200 shadow-smooth overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-700">
+            <tr>
+              <th class="px-4 py-3 text-left">ชื่อ</th>
+              <th class="px-4 py-3 text-left">SKU</th>
+              <th class="px-4 py-3 text-left">หมวดหมู่</th>
+              <th class="px-4 py-3 text-right">ราคา/หน่วย</th>
+              <th class="px-4 py-3 text-center">ปรับ</th>
+              <th class="px-4 py-3 text-right">คงเหลือ</th>
+              <th class="px-4 py-3 text-left">หน่วย</th>
+              <th class="px-4 py-3 text-left">หมายเหตุ</th>
+              <th class="px-4 py-3 text-left">อัปเดต</th>
+              <th class="px-4 py-3">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Edit History -->
+    <section class="mt-6">
+      <h2 class="text-lg font-semibold mb-2">ประวัติการแก้ไข</h2>
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-smooth overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-700">
+              <tr>
+                <th class="px-4 py-3 text-left">เวลา</th>
+                <th class="px-4 py-3 text-left">เหตุการณ์</th>
+                <th class="px-4 py-3 text-left">สินค้า</th>
+                <th class="px-4 py-3 text-left">หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="fixed inset-0 hidden items-center justify-center bg-black/40 z-50">
+    <div class="w-full max-w-2xl bg-white rounded-2xl p-5 shadow-smooth">
+      <h3 id="modalTitle" class="text-xl font-bold">เพิ่มรายการ</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label class="text-sm text-slate-600">ชื่อสินค้า</label>
+          <input id="fName" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">SKU/บาร์โค้ด</label>
+          <input id="fSku" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">หมวดหมู่</label>
+          <input id="fCategory" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="เช่น อาหาร, เคมีภัณฑ์, อุปกรณ์" />
+        </div>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <label class="text-sm text-slate-600">คงเหลือ</label>
+            <input id="fQty" type="number" step="any" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+          </div>
+          <div class="w-32">
+            <label class="text-sm text-slate-600">หน่วย</label>
+            <input id="fUnit" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="ชิ้น, กรัม, มล." />
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-slate-600">ราคา/หน่วย</label>
+          <input id="fPrice" type="number" step="any" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-sm text-slate-600">หมายเหตุ</label>
+          <textarea id="fNote" rows="2" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button id="btnCancel" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">ยกเลิก</button>
+        <button id="btnSave" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ===== Utils (Status Bar) =====
+  function setStatus(msg,type='info'){
+    const el=document.getElementById('statusBar');
+    if(!el) return; el.textContent=msg; el.classList.remove('hidden');
+    el.classList.remove('bg-yellow-50','border-yellow-200','text-yellow-800','bg-red-50','border-red-200','text-red-800','bg-emerald-50','border-emerald-200','text-emerald-800');
+    if(type==='error'){ el.classList.add('bg-red-50','border-red-200','text-red-800'); }
+    else if(type==='ok'){ el.classList.add('bg-emerald-50','border-emerald-200','text-emerald-800'); }
+    else { el.classList.add('bg-yellow-50','border-yellow-200','text-yellow-800'); }
+  }
+
+  // ===== Data Layer (Local Cache) =====
+  const LS_KEY='stockflow-lite-v1';
+  const LS_HISTORY_KEY='stockflow-lite-history-v1';
+  let items=JSON.parse(localStorage.getItem(LS_KEY)||'[]');
+  let history=JSON.parse(localStorage.getItem(LS_HISTORY_KEY)||'[]');
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+  function saveAll(){ localStorage.setItem(LS_KEY,JSON.stringify(items)); localStorage.setItem(LS_HISTORY_KEY,JSON.stringify(history)); }
+  function addHistory(action,itemName,note=''){ history.unshift({ts:Date.now(),action,item:itemName,note}); if(history.length>1000) history.pop(); saveAll(); renderHistory(); }
+
+  // ===== Elements =====
+  const tbody=document.getElementById('tbody');
+  const historyBody=document.getElementById('historyBody');
+  const search=document.getElementById('search');
+  const filterCategory=document.getElementById('filterCategory');
+  const sortBy=document.getElementById('sortBy');
+  const lowStockThresholdInput=document.getElementById('lowStockThreshold');
+  const btnAdd=document.getElementById('btnAdd');
+  const btnExportJson=document.getElementById('btnExportJson');
+  const btnExportCsv=document.getElementById('btnExportCsv');
+  const fileImportJson=document.getElementById('fileImportJson');
+  const modal=document.getElementById('modal');
+  const modalTitle=document.getElementById('modalTitle');
+  const fName=document.getElementById('fName');
+  const fSku=document.getElementById('fSku');
+  const fCategory=document.getElementById('fCategory');
+  const fQty=document.getElementById('fQty');
+  const fUnit=document.getElementById('fUnit');
+  const fPrice=document.getElementById('fPrice');
+  const fNote=document.getElementById('fNote');
+  const btnCancel=document.getElementById('btnCancel');
+  const btnSave=document.getElementById('btnSave');
+  const btnTestLoad=document.getElementById('btnTestLoad');
+  let editingId=null;
+
+  // ===== Renderers =====
+  function escapeHtml(str=''){ return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+  function formatNumber(n){ if(n===undefined||n===null||n==='') return ''; const num=Number(n); return Number.isFinite(num)?num.toLocaleString('th-TH'):''; }
+  function renderCategoryFilter(){ const cats=Array.from(new Set(items.map(i=>i.category).filter(Boolean))); filterCategory.innerHTML='<option value="">ทั้งหมด</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); }
+  function renderTable(){ const q=search.value.toLowerCase(); const cat=filterCategory.value; const sortKey=sortBy.value; const lowStock=Number(lowStockThresholdInput.value||0); const rows=items.filter(i=>{ const matchText=((i.name||'').toLowerCase().includes(q)||(i.sku||'').toLowerCase().includes(q)||(i.note||'').toLowerCase().includes(q)); const matchCat=cat? i.category===cat : true; return matchText && matchCat; }).sort((a,b)=>{ if(sortKey==='name') return a.name.localeCompare(b.name,'th'); if(sortKey==='qty') return b.qty-a.qty; if(sortKey==='updatedAt') return b.updatedAt-a.updatedAt; if(sortKey==='sku') return a.sku.localeCompare(b.sku,'th'); return 0; }).map(i=>{ const low=i.qty<lowStock; const trClass=low?'bg-red-50/60':''; const updatedStr=i.updatedAt? new Date(i.updatedAt).toLocaleString('th-TH') : ''; return `
+<tr class="${trClass}">
+  <td class="px-4 py-3 whitespace-nowrap font-medium">${escapeHtml(i.name)}</td>
+  <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(i.sku||'')}</td>
+  <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(i.category||'')}</td>
+  <td class="px-4 py-3 text-right">${formatNumber(i.price)}</td>
+  <td class="px-4 py-3"><div class="flex items-center justify-center gap-2">
+    <button data-act="dec" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white">-</button>
+    <button data-act="inc" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">+</button>
+  </div></td>
+  <td class="px-4 py-3 text-right tabular-nums">${formatNumber(i.qty)}</td>
+  <td class="px-4 py-3">${escapeHtml(i.unit||'')}</td>
+  <td class="px-4 py-3 max-w-[18rem] truncate" title="${escapeHtml(i.note||'')}">${escapeHtml(i.note||'')}</td>
+  <td class="px-4 py-3 whitespace-nowrap">${updatedStr}</td>
+  <td class="px-4 py-3 whitespace-nowrap"><div class="flex items-center gap-2">
+    <button data-act="edit" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">แก้ไข</button>
+    <button data-act="del" data-id="${i.id}" class="px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200">ลบ</button>
+  </div></td>
+</tr>`; }).join(''); tbody.innerHTML = rows || `<tr><td colspan="10" class="px-4 py-6 text-center text-slate-500">ยังไม่มีข้อมูลจากชีต</td></tr>`; }
+  function renderHistory(){ historyBody.innerHTML = history.map(h=>{ const ts=new Date(h.ts).toLocaleString('th-TH'); return `<tr><td class="px-4 py-3 whitespace-nowrap">${ts}</td><td class="px-4 py-3 whitespace-nowrap">${escapeHtml(h.action)}</td><td class="px-4 py-3 whitespace-nowrap">${escapeHtml(h.item)}</td><td class="px-4 py-3">${escapeHtml(h.note||'')}</td></tr>`; }).join(''); }
+
+  function openModal(title='เพิ่มรายการ',data=null){ modalTitle.textContent=title; modal.classList.remove('hidden'); modal.classList.add('flex'); if(data){ fName.value=data.name||''; fSku.value=data.sku||''; fCategory.value=data.category||''; fQty.value=data.qty??''; fUnit.value=data.unit||''; fPrice.value=data.price??''; fNote.value=data.note||''; } else { fName.value=fSku.value=fCategory.value=fUnit.value=fNote.value=''; fQty.value=fPrice.value=''; } setTimeout(()=>fName.focus(),50); }
+  function closeModal(){ modal.classList.add('hidden'); modal.classList.remove('flex'); }
+  function validateForm(){ if(!fName.value.trim()){ alert('กรุณากรอกชื่อสินค้า'); return false;} if(fQty.value===''||isNaN(Number(fQty.value))){ alert('กรุณากรอกจำนวนให้ถูกต้อง'); return false;} if(fPrice.value!==''&&isNaN(Number(fPrice.value))){ alert('ราคาต้องเป็นตัวเลข'); return false;} return true; }
+
+  // ===== Google Sheets API Bridge =====
+  const API_URL='https://script.google.com/macros/s/AKfycbwvjq63SL_RazdkGrKHLmc4KGbgwtXwxIAdRu6IichY-yel9pku56XJqUl0GN4f2Kk/exec';
+  const API_KEY=''; // ถ้าตั้งใน Apps Script ให้ใส่ให้ตรงกัน
+  async function apiGet(params){
+    const q=new URLSearchParams({ ...(API_KEY?{key:API_KEY}:{}) , ...params }).toString();
+    const url=`${API_URL}?${q}`;
+    setStatus(`เรียก API: ${url}`);
+    let res;
+    try{ res=await fetch(url,{method:'GET',mode:'cors',cache:'no-store'}); }
+    catch(err){ setStatus('❌ Failed to fetch: '+err.message,'error'); throw err; }
+    if(!res.ok){ const txt=await res.text().catch(()=> ''); setStatus(`❌ HTTP ${res.status}: ${txt.slice(0,140)}`,'error'); throw new Error('HTTP '+res.status); }
+    const data=await res.json();
+    if(!data || data.ok===false){ setStatus('❌ API error: '+(data && data.error ? data.error : 'unknown'),'error'); }
+    else { setStatus('✅ API OK','ok'); }
+    return data;
+  }
+  async function remoteLoadItems(){ const r=await apiGet({action:'list'}); if(!r.ok) throw new Error(r.error||'load-failed'); items=r.items||[]; saveAll(); renderCategoryFilter(); renderTable(); renderHistory(); }
+  async function remoteUpsertItem(payload){ const r=await apiGet({action:'upsert', data:JSON.stringify(payload)}); if(!r.ok) throw new Error(r.error||'upsert-failed'); return r; }
+  async function remoteDeleteItem(id){ const r=await apiGet({action:'delete', id}); if(!r.ok) throw new Error(r.error||'delete-failed'); return r; }
+  async function remoteAdjustQty(id,delta){ const r=await apiGet({action:'adjust', id, delta}); if(!r.ok) throw new Error(r.error||'adjust-failed'); return r; }
+  async function remoteImport(arr){ const r=await apiGet({action:'import', data:JSON.stringify(arr)}); if(!r.ok) throw new Error(r.error||'import-failed'); return r; }
+
+  // ===== Events =====
+  btnAdd.addEventListener('click',()=>{ editingId=null; openModal('เพิ่มรายการ'); });
+  btnCancel.addEventListener('click',()=>{ closeModal(); });
+  btnSave.addEventListener('click', async ()=>{ if(!validateForm()) return; const payload={ id: editingId||undefined, name:fName.value.trim(), sku:fSku.value.trim(), category:fCategory.value.trim(), qty:Number(fQty.value||0), unit:fUnit.value.trim(), price:Number(fPrice.value||0), note:fNote.value.trim() }; try{ await remoteUpsertItem(payload); await remoteLoadItems(); closeModal(); alert('บันทึกสำเร็จ (Google Sheet)'); }catch(err){ alert('บันทึกลงชีตไม่สำเร็จ จะเก็บออฟไลน์แทน: '+err.message); const localPayload={...payload, updatedAt:Date.now()}; if(editingId){ const idx=items.findIndex(x=>x.id===editingId); if(idx>-1) items[idx]={...items[idx], ...localPayload}; addHistory('แก้ไขข้อมูล(ออฟไลน์)', localPayload.name); } else { items.unshift({id:uid(), ...localPayload}); addHistory('เพิ่มรายการ(ออฟไลน์)', localPayload.name); } saveAll(); renderCategoryFilter(); renderTable(); closeModal(); }
+  });
+
+  tbody.addEventListener('click', async (e)=>{ const t=e.target.closest('button'); if(!t) return; const id=t.getAttribute('data-id'); const act=t.getAttribute('data-act'); const idx=items.findIndex(i=>i.id===id); if(idx===-1) return; const it=items[idx]; try{ if(act==='inc'){ const val=Number(prompt('เพิ่มจำนวนเท่าไหร่?','1')); if(!Number.isFinite(val)) return; await remoteAdjustQty(id,val); } else if(act==='dec'){ const val=Number(prompt('ลดจำนวนเท่าไหร่?','1')); if(!Number.isFinite(val)) return; await remoteAdjustQty(id,-Math.abs(val)); } else if(act==='edit'){ editingId=id; openModal('แก้ไขรายการ',it); return; } else if(act==='del'){ if(confirm(`ยืนยันการลบ "${it.name}" ?`)){ await remoteDeleteItem(id); } else { return; } } await remoteLoadItems(); }catch(err){ alert('เชื่อมชีตไม่สำเร็จ ลองใหม่ หรือใช้งานออฟไลน์ชั่วคราว'); console.error(err); }
+  });
+
+  [search,filterCategory,sortBy,lowStockThresholdInput].forEach(el=>{ el.addEventListener('input',renderTable); el.addEventListener('change',renderTable); });
+
+  btnExportJson.addEventListener('click',()=>{ const blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`stockflow-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+  btnExportCsv.addEventListener('click',()=>{ const header=['name','sku','category','qty','unit','price','note','updatedAt']; const lines=[header.join(',')].concat(items.map(i=> header.map(k=>csvCell(i[k])).join(','))); const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`stockflow-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+  function csvCell(v){ if(v===null||v===undefined) return '""'; const s=String(v).replaceAll('"','""'); return `"${s}"`; }
+
+  fileImportJson.addEventListener('change', async (e)=>{ const file=e.target.files?.[0]; if(!file) return; const text=await file.text(); try{ const arr=JSON.parse(text); if(!Array.isArray(arr)) throw new Error('โครงสร้างไฟล์ไม่ถูกต้อง'); await remoteImport(arr); await remoteLoadItems(); alert('นำเข้าเสร็จแล้ว (Google Sheet)'); }catch(err){ alert('นำเข้าลงชีตไม่สำเร็จ: '+err.message); } finally { fileImportJson.value=''; }
+  });
+
+  window.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && !modal.classList.contains('hidden')) closeModal(); });
+  window.addEventListener('error',(e)=>{ setStatus('❌ JS error: '+e.message,'error'); });
+  window.addEventListener('unhandledrejection',(e)=>{ setStatus('❌ Promise error: '+(e.reason?.message||e.reason||'unknown'),'error'); });
+
+  // Seed (offline first run)
+  function seedIfEmpty(){ if(items.length) return; const now=Date.now(); items=[ {id:uid(), name:'ปากกาเจล 0.5', sku:'PEN-GL05', category:'เครื่องเขียน', qty:24, unit:'ด้าม', price:12, note:'สีน้ำเงิน', updatedAt:now}, {id:uid(), name:'ถุงซิป 6x8"', sku:'ZIP-68', category:'บรรจุภัณฑ์', qty:180, unit:'ใบ', price:0.5, note:'', updatedAt:now}, {id:uid(), name:'เอทานอล 95%', sku:'EtOH-95', category:'เคมีภัณฑ์', qty:8, unit:'ลิตร', price:75, note:'สำหรับทำความสะอาด', updatedAt:now} ]; saveAll(); }
+
+  async function boot(){ try{ await remoteLoadItems(); }catch(err){ console.warn('โหลดจากชีตไม่สำเร็จ ใช้ cache ออฟไลน์แทน:',err); if(!items.length) seedIfEmpty(); renderCategoryFilter(); renderTable(); renderHistory(); } }
+
+  if(btnTestLoad){ btnTestLoad.addEventListener('click', async ()=>{ try{ const r=await apiGet({action:'list'}); alert('รายการที่ได้จากชีต: '+(r.items?.length ?? 0)); }catch(err){ alert('เรียก API ไม่สำเร็จ: '+err.message); } }); }
+
+  boot();
+  </script>
 </body>
 </html>
