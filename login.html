@@ -80,7 +80,7 @@ function closeModal(){ modal.classList.add('hidden'); modal.classList.remove('fl
 function validateForm(){ if(!fName.value.trim()){ alert('กรุณากรอกชื่อสินค้า'); return false;} if(fQty.value===''||isNaN(Number(fQty.value))){ alert('กรุณากรอกจำนวนให้ถูกต้อง'); return false;} if(fPrice.value!==''&&isNaN(Number(fPrice.value))){ alert('ราคาต้องเป็นตัวเลข'); return false;} return true; }
 
 // ===== Google Sheets API Bridge =====
-const API_URL='https://script.google.com/macros/s/AKfycbwSxkQrYOn6cjx-9iS6Z3STt4PRYmd-h-sWqXQHGsLFKC8ExjT3iBYmVnkABzWCIkR8/exec';
+const API_URL='https://script.google.com/macros/s/AKfycbwvjq63SL_RazdkGrKHLmc4KGbgwtXwxIAdRu6IichY-yel9pku56XJqUl0GN4f2Kk/exec';
 const API_KEY=''; // ใส่คีย์ถ้าตั้งใน Apps Script
 async function apiGet(params){ const q=new URLSearchParams({ ...(API_KEY?{key:API_KEY}:{}) , ...params }).toString(); const url=`${API_URL}?${q}`; setStatus(`เรียก API: ${url}`); let res; try{ res=await fetch(url,{method:'GET',mode:'cors',cache:'no-store'}); }catch(err){ setStatus('❌ Failed to fetch: '+err.message,'error'); throw err; } if(!res.ok){ const txt=await res.text().catch(()=> ''); setStatus(`❌ HTTP ${res.status}: ${txt.slice(0,140)}`,'error'); throw new Error('HTTP '+res.status); } const data=await res.json(); if(!data || data.ok===false){ setStatus('❌ API error: '+(data && data.error ? data.error : 'unknown'),'error'); } else { setStatus('✅ API OK','ok'); } return data; }
 async function remoteLoadItems(){ const r=await apiGet({action:'list'}); if(!r.ok) throw new Error(r.error||'load-failed'); items=r.items||[]; saveAll(); renderCategoryFilter(); renderTable(); renderHistory(); }
@@ -129,3 +129,4 @@ boot();
 </script>
 </body>
 </html>
+
