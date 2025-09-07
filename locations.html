@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — Locations</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="./index.html" class="size-9 rounded-2xl bg-slate-900 text-white grid place-items-center font-bold">SF</a>
+        <div>
+          <h1 class="text-xl font-extrabold">ตำแหน่งจัดเก็บ (Locations)</h1>
+          <p class="text-xs text-slate-500">จัดการชั้น/ตู้/ห้อง และ metadata สถานที่เก็บ</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-2">
+        <a href="./index.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">หน้าหลัก</a>
+        <a href="./chemical.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Chemical</a>
+        <a href="./equipment.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Equipment</a>
+        <a href="./requests.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Requests</a>
+        <a href="./code.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Code</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="font-bold text-lg">รายการตำแหน่งจัดเก็บ</div>
+        <div class="flex flex-wrap gap-2">
+          <button id="btnExportJSON" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export JSON</button>
+          <button id="btnExportCSV" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export CSV</button>
+          <label class="px-3 py-2 rounded-xl bg-white border cursor-pointer">
+            Import JSON/CSV
+            <input id="fileImport" type="file" accept=".json,.csv" class="hidden">
+          </label>
+          <button id="btnClearAll" class="px-3 py-2 rounded-xl bg-white border">ลบทั้งหมด</button>
+        </div>
+      </div>
+
+      <div class="mt-4 grid md:grid-cols-5 gap-2">
+        <input id="name" class="px-3 py-2 border rounded-xl" placeholder="ชื่อสถานที่/ชั้น/ตู้ *">
+        <input id="code" class="px-3 py-2 border rounded-xl" placeholder="รหัส (เช่น A1, F-03)">
+        <input id="room" class="px-3 py-2 border rounded-xl" placeholder="ห้อง (เช่น Lab 2)">
+        <input id="note" class="px-3 py-2 border rounded-xl md:col-span-2" placeholder="หมายเหตุ">
+        <button id="btnAdd" class="px-3 py-2 rounded-xl bg-slate-900 text-white md:col-span-1">เพิ่มตำแหน่ง</button>
+      </div>
+
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left bg-slate-100">
+            <tr>
+              <th class="px-3 py-2">#</th>
+              <th class="px-3 py-2">ชื่อ</th>
+              <th class="px-3 py-2">รหัส</th>
+              <th class="px-3 py-2">ห้อง</th>
+              <th class="px-3 py-2">หมายเหตุ</th>
+              <th class="px-3 py-2">การทำงาน</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <template id="rowTemplate">
+    <tr>
+      <td class="px-3 py-2 text-slate-500"></td>
+      <td class="px-3 py-2 font-medium"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2 text-slate-600"></td>
+      <td class="px-3 py-2">
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-1 rounded-lg border hover:bg-slate-50 btnEdit">แก้ไข</button>
+          <button class="px-3 py-1 rounded-lg border hover:bg-slate-50 btnDelete">ลบ</button>
+        </div>
+      </td>
+    </tr>
+  </template>
+
+  <script>
+    const KEY='locations';
+    const $=(s,r=document)=>r.querySelector(s);
+    const load=(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;}};
+    const save=(k,v)=>localStorage.setItem(k, JSON.stringify(v));
+
+    let data = load(KEY);
+    const tbody = document.getElementById('tbody');
+    const rowTpl = document.getElementById('rowTemplate');
+
+    function render(){
+      tbody.innerHTML='';
+      data.map((x,i)=>({...x,idx:i+1})).forEach(item=>{
+        const row=rowTpl.content.firstElementChild.cloneNode(true);
+        const c=row.children;
+        c[0].textContent=item.idx;
+        c[1].textContent=item.name;
+        c[2].textContent=item.code||'-';
+        c[3].textContent=item.room||'-';
+        c[4].textContent=item.note||'';
+        c[5].querySelector('.btnEdit').onclick=()=>{
+          const name=prompt('ชื่อ', item.name)||item.name;
+          const code=prompt('รหัส', item.code||'')||item.code||'';
+          const room=prompt('ห้อง', item.room||'')||item.room||'';
+          const note=prompt('หมายเหตุ', item.note||'')||item.note||'';
+          item.name=name; item.code=code; item.room=room; item.note=note; save(KEY,data); render();
+        };
+        c[5].querySelector('.btnDelete').onclick=()=>{ if(!confirm('ลบตำแหน่งนี้?'))return; data=data.filter(x=>x!==item); save(KEY,data); render(); };
+        tbody.appendChild(row);
+      });
+    }
+
+    document.getElementById('btnAdd').onclick=()=>{
+      const name=$('#name').value.trim();
+      const code=$('#code').value.trim();
+      const room=$('#room').value.trim();
+      const note=$('#note').value.trim();
+      if(!name){ alert('กรุณากรอกชื่อสถานที่'); return; }
+      data.unshift({ id:crypto.randomUUID(), name, code, room, note });
+      save(KEY,data);
+      $('#name').value=''; $('#code').value=''; $('#room').value=''; $('#note').value='';
+      render();
+    };
+
+    function download(filename, text){
+      const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+    }
+    document.getElementById('btnExportJSON').onclick=()=>download('locations.json', JSON.stringify(data,null,2));
+    document.getElementById('btnExportCSV').onclick=()=>{
+      const esc=v=> '"'+String(v).replace(/"/g,'""')+'"';
+      const header=['name','code','room','note'];
+      const rows=data.map(x=>[x.name,x.code||'',x.room||'',x.note||''].map(esc).join(','));
+      download('locations.csv', header.join(',')+'\n'+rows.join('\n'));
+    };
+
+    document.getElementById('fileImport').onchange=(e)=>{
+      const file=e.target.files[0]; if(!file) return; const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          let arr=[]; const txt=reader.result;
+          if(file.name.endsWith('.json')) arr=JSON.parse(txt);
+          else {
+            const lines=txt.split(/\r?\n/).filter(Boolean); const header=lines.shift().split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+            const idx=h=>header.indexOf(h);
+            arr=lines.map(line=>{
+              const cols=line.match(/(?:^|,)(?:\"[^\"]*\"|[^,]*)/g).map(c=>c.replace(/^,/,'').replace(/^"|"$/g,''));
+              return { id:crypto.randomUUID(), name:cols[idx('name')]||'', code:cols[idx('code')]||'', room:cols[idx('room')]||'', note:cols[idx('note')]||'' };
+            });
+          }
+          data = arr.concat(data); save(KEY,data); render();
+        }catch(err){ alert('ไฟล์นำเข้าไม่ถูกต้อง: '+err.message); }
+        e.target.value='';
+      }; reader.readAsText(file);
+    };
+
+    document.getElementById('btnClearAll').onclick=()=>{ if(!confirm('ลบข้อมูลทั้งหมดของ Locations?')) return; data=[]; save(KEY,data); render(); };
+
+    render();
+  </script>
+</body>
+</html>

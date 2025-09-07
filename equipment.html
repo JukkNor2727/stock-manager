@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — Equipment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="./index.html" class="size-9 rounded-2xl bg-slate-900 text-white grid place-items-center font-bold">SF</a>
+        <div>
+          <h1 class="text-xl font-extrabold">Equipment Stock</h1>
+          <p class="text-xs text-slate-500">รายการอุปกรณ์ · +/− จำนวน · ประวัติการแก้ไข</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-2">
+        <a href="./index.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">หน้าหลัก</a>
+        <a href="./chemical.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Chemical</a>
+        <a href="./code.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Code</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="font-bold text-lg">รายการอุปกรณ์</div>
+        <div class="flex flex-wrap gap-2">
+          <input id="search" type="search" placeholder="ค้นหา..." class="px-3 py-2 border rounded-xl outline-none w-48">
+          <button id="btnExportJSON" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export JSON</button>
+          <button id="btnExportCSV" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export CSV</button>
+          <label class="px-3 py-2 rounded-xl bg-white border cursor-pointer">
+            Import JSON/CSV
+            <input id="fileImport" type="file" accept=".json,.csv" class="hidden">
+          </label>
+          <button id="btnLoadSample" class="px-3 py-2 rounded-xl bg-white border">โหลดตัวอย่าง</button>
+          <button id="btnClearAll" class="px-3 py-2 rounded-xl bg-white border">ลบทั้งหมด</button>
+        </div>
+      </div>
+
+      <div class="mt-4 grid md:grid-cols-4 gap-2">
+        <input id="name" class="px-3 py-2 border rounded-xl" placeholder="ชื่ออุปกรณ์ *">
+        <input id="qty" type="number" class="px-3 py-2 border rounded-xl" placeholder="จำนวน *">
+        <input id="note" class="px-3 py-2 border rounded-xl md:col-span-2" placeholder="หมายเหตุ">
+        <button id="btnAdd" class="px-3 py-2 rounded-xl bg-slate-900 text-white md:col-span-1">เพิ่มรายการ</button>
+      </div>
+
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left bg-slate-100">
+            <tr>
+              <th class="px-3 py-2">#</th>
+              <th class="px-3 py-2">ชื่ออุปกรณ์</th>
+              <th class="px-3 py-2">จำนวน</th>
+              <th class="px-3 py-2">หมายเหตุ</th>
+              <th class="px-3 py-2">การทำงาน</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div class="font-bold">Edit History</div>
+        <button id="btnClearHistory" class="px-3 py-2 rounded-xl bg-white border">ล้างประวัติ</button>
+      </div>
+      <div class="mt-3 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left bg-slate-100">
+            <tr>
+              <th class="px-3 py-2">Timestamp</th>
+              <th class="px-3 py-2">Action</th>
+              <th class="px-3 py-2">Item</th>
+              <th class="px-3 py-2">Note</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody" class="divide-y"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <template id="rowTemplate">
+    <tr>
+      <td class="px-3 py-2 align-top text-slate-500"></td>
+      <td class="px-3 py-2 align-top font-medium"></td>
+      <td class="px-3 py-2 align-top">
+        <div class="flex items-center gap-2">
+          <button class="px-2 py-1 rounded-lg border hover:bg-slate-50 btnMinus">−</button>
+          <span class="qty font-semibold"></span>
+          <button class="px-2 py-1 rounded-lg border hover:bg-slate-50 btnPlus">+</button>
+          <button class="ml-2 text-xs px-2 py-1 rounded-lg border hover:bg-slate-50 btnEditQty">แก้ไข</button>
+        </div>
+      </td>
+      <td class="px-3 py-2 align-top">
+        <div class="flex items-center gap-2">
+          <span class="note block max-w-[24ch] truncate"></span>
+          <button class="text-xs px-2 py-1 rounded-lg border hover:bg-slate-50 btnEditNote">แก้ไข</button>
+        </div>
+      </td>
+      <td class="px-3 py-2 align-top">
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-1 rounded-lg border hover:bg-slate-50 btnDelete">ลบ</button>
+        </div>
+      </td>
+    </tr>
+  </template>
+
+  <template id="historyTemplate">
+    <tr>
+      <td class="px-3 py-2 text-slate-500"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2 font-medium"></td>
+      <td class="px-3 py-2 text-slate-600"></td>
+    </tr>
+  </template>
+
+  <script>
+    const KEY = "equipment_stock";
+    const HKEY = "equipment_history";
+
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    const load = (key, d=[]) => { try { return JSON.parse(localStorage.getItem(key)) || d; } catch { return d; } };
+    const save = (key, v) => localStorage.setItem(key, JSON.stringify(v));
+
+    let data = load(KEY);
+    let history = load(HKEY);
+
+    const tbody = $("#tbody");
+    const rowTpl = $("#rowTemplate");
+    const histTpl = $("#historyTemplate");
+
+    function render() {
+      const q = $("#search").value.toLowerCase().trim();
+      tbody.innerHTML = "";
+      data
+        .map((x, i) => ({...x, idx: i+1}))
+        .filter(x => !q || x.name.toLowerCase().includes(q) || (x.note||"").toLowerCase().includes(q))
+        .forEach(item => {
+          const row = rowTpl.content.firstElementChild.cloneNode(true);
+          const cells = row.children;
+          cells[0].textContent = item.idx;
+          cells[1].textContent = item.name;
+          cells[2].querySelector(".qty").textContent = item.qty;
+          cells[3].querySelector(".note").textContent = item.note || "";
+
+          cells[2].querySelector(".btnPlus").onclick = () => { item.qty++; saveChange("+1", item); };
+          cells[2].querySelector(".btnMinus").onclick = () => { item.qty = Math.max(0, item.qty-1); saveChange("-1", item); };
+          cells[2].querySelector(".btnEditQty").onclick = () => {
+            const val = prompt("ระบุจำนวนใหม่สำหรับ ""+item.name+""", item.qty);
+            if (val === null) return;
+            const num = Number(val);
+            if (Number.isFinite(num)) {
+              const old = item.qty;
+              item.qty = num;
+              saveChange("Edit qty", item, `from ${old} → ${num}`);
+            }
+          };
+          cells[3].querySelector(".btnEditNote").onclick = () => {
+            const val = prompt("หมายเหตุสำหรับ ""+item.name+""", item.note || "");
+            if (val === null) return;
+            item.note = val;
+            saveChange("Edit note", item, val);
+          };
+          cells[4].querySelector(".btnDelete").onclick = () => {
+            if (!confirm("ลบ ""+item.name+"" ?")) return;
+            data = data.filter(x => x.id !== item.id);
+            saveChange("Delete item", item);
+          };
+
+          tbody.appendChild(row);
+        });
+    }
+
+    function saveChange(action, item, note="") {
+      save(KEY, data);
+      const h = { ts: new Date().toLocaleString("th-TH"), action, item: item.name, note };
+      history.unshift(h);
+      history = history.slice(0, 500);
+      save(HKEY, history);
+      render();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const hb = $("#historyBody");
+      hb.innerHTML = "";
+      history.forEach(h => {
+        const row = histTpl.content.firstElementChild.cloneNode(true);
+        const cells = row.children;
+        cells[0].textContent = h.ts;
+        cells[1].textContent = h.action;
+        cells[2].textContent = h.item;
+        cells[3].textContent = h.note || "";
+        hb.appendChild(row);
+      });
+    }
+
+    $("#btnAdd").onclick = () => {
+      const name = $("#name").value.trim();
+      const qty = Number($("#qty").value);
+      const note = $("#note").value.trim();
+      if (!name || !Number.isFinite(qty)) { alert("กรุณากรอก ชื่ออุปกรณ์ และ จำนวน (ตัวเลข)"); return; }
+      const item = { id: crypto.randomUUID(), name, qty, note };
+      data.unshift(item);
+      $("#name").value = ""; $("#qty").value = ""; $("#note").value = "";
+      saveChange("Add item", item);
+    };
+
+    $("#search").addEventListener("input", render);
+
+    $("#btnClearAll").onclick = () => {
+      if (!confirm("ลบข้อมูลทั้งหมดและประวัติ?")) return;
+      data = []; history = [];
+      save(KEY, data); save(HKEY, history);
+      render(); renderHistory();
+    };
+
+    $("#btnClearHistory").onclick = () => {
+      if (!confirm("ล้างประวัติทั้งหมด?")) return;
+      history = []; save(HKEY, history); renderHistory();
+    };
+
+    // Import
+    $("#fileImport").onchange = (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const txt = reader.result;
+        let arr = [];
+        try {
+          if (file.name.endsWith(".json")) {
+            arr = JSON.parse(txt);
+          } else {
+            // CSV headers: name,qty,note
+            const lines = txt.split(/\r?\n/).filter(Boolean);
+            const header = lines.shift().split(",").map(s => s.trim().replace(/^"|"$/g,""));
+            const idx = (h) => header.indexOf(h);
+            arr = lines.map(line => {
+              const cols = line.match(/(?:^|,)(?:\"[^\"]*\"|[^,]*)/g).map(c => c.replace(/^,/, "").replace(/^"|"$/g, ""));
+              return { id: crypto.randomUUID(), name: cols[idx("name")] || "", qty: Number(cols[idx("qty")] || 0), note: cols[idx("note")] || "" };
+            });
+          }
+          // merge by name
+          const map = new Map(data.map(x => [x.name.toLowerCase(), x]));
+          arr.forEach(x => {
+            const k = x.name.toLowerCase();
+            if (map.has(k)) {
+              const cur = map.get(k);
+              cur.qty = x.qty; cur.note = x.note;
+            } else {
+              data.push(x);
+            }
+          });
+          saveChange("Import", {name: "multiple"}, file.name);
+        } catch (err) {
+          alert("ไฟล์นำเข้าไม่ถูกต้อง: " + err.message);
+        }
+        e.target.value = "";
+      };
+      reader.readAsText(file);
+    };
+
+    function download(filename, text) {
+      const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    $("#btnExportJSON").onclick = () => download("equipment_stock.json", JSON.stringify(data, null, 2));
+
+    function toCSV(arr) {
+      const esc = (v) => ('"' + String(v).replace(/"/g, '""') + '"');
+      const header = ["name","qty","note"];
+      const rows = arr.map(x => [x.name, x.qty, x.note||""].map(esc).join(","));
+      return header.join(",") + "\n" + rows.join("\n");
+    }
+    $("#btnExportCSV").onclick = () => download("equipment_stock.csv", toCSV(data));
+
+    $("#btnLoadSample").onclick = () => {
+      const sample = [
+        { id: crypto.randomUUID(), name: "Beaker 250 mL", qty: 12, note: "" },
+        { id: crypto.randomUUID(), name: "Pipette Tips (200 µL)", qty: 480, note: "กล่องละ 96 ชิ้น" },
+        { id: crypto.randomUUID(), name: "Stirrer Hotplate", qty: 2, note: "เครื่องมือหลัก" }
+      ];
+      data = sample.concat(data);
+      saveChange("Load sample", {name: "sample"});
+    };
+
+    render();
+    renderHistory();
+  </script>
+</body>
+</html>

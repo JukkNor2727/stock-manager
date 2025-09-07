@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — Code & Google Sheet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="./index.html" class="size-9 rounded-2xl bg-slate-900 text-white grid place-items-center font-bold">SF</a>
+        <div>
+          <h1 class="text-xl font-extrabold">ตั้งค่าเชื่อม Google Sheet</h1>
+          <p class="text-xs text-slate-500">Apps Script (doGet/doPost) พร้อมทดสอบเรียกใช้งาน</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-2">
+        <a href="./index.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">หน้าหลัก</a>
+        <a href="./chemical.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Chemical</a>
+        <a href="./equipment.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Equipment</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <h2 class="font-bold text-lg">1) วาง Apps Script นี้ลงใน Code.gs (เริ่มตั้งแต่บรรทัดแรก)</h2>
+      <p class="text-slate-600 text-sm mt-1">รองรับ <code>GET</code> เพื่ออ่านข้อมูล และ <code>POST</code> เพื่ออัปเดต/เพิ่มข้อมูล (JSON)</p>
+      <pre class="mt-3 p-4 bg-slate-900 text-slate-50 rounded-xl overflow-auto text-xs" id="codeBlock">// === Code.gs (Google Apps Script) ===
+function doGet(e) {
+  var sheetName = (e && e.parameter && e.parameter.sheet) || "chemical";
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh) return ContentService.createTextOutput(JSON.stringify({ error: "Sheet not found" })).setMimeType(ContentService.MimeType.JSON);
+  var values = sh.getDataRange().getValues();
+  var header = values.shift();
+  var rows = values.filter(function(r){ return r.join("").length; }).map(function(r){
+    var obj = {};
+    header.forEach(function(h, i){ obj[String(h).trim()] = r[i]; });
+    return obj;
+  });
+  return ContentService.createTextOutput(JSON.stringify({ sheet: sheetName, rows: rows })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var body = e.postData && e.postData.contents || "{}";
+    var payload = JSON.parse(body);
+    var sheetName = payload.sheet || "chemical";
+    var data = payload.rows || [];
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+    // ensure header
+    var headers = payload.headers || Object.keys(data[0] || {name:"", unit:"", amount:"", remaining:"", note:""});
+    sh.clear();
+    sh.getRange(1,1,1,headers.length).setValues([headers]);
+    if (data.length) {
+      var values = data.map(function(obj){ return headers.map(function(h){ return obj[h]; }); });
+      sh.getRange(2,1,values.length,headers.length).setValues(values);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, sheet: sheetName, count: data.length })).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok:false, error: String(err) })).setMimeType(ContentService.MimeType.JSON);
+  }
+}</pre>
+      <button class="mt-3 px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onclick="copyCode()">คัดลอกโค้ด</button>
+    </section>
+
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <h2 class="font-bold text-lg">2) เผยแพร่เป็น Web App</h2>
+      <ol class="list-decimal ml-6 text-sm text-slate-700 space-y-1 mt-2">
+        <li>ใน Apps Script: <span class="font-semibold">Deploy ▸ New deployment ▸ Web app</span></li>
+        <li>เลือก <span class="font-semibold">Anyone with the link</span> (หรือ ใครก็ได้)</li>
+        <li>คัดลอก <span class="font-mono">SCRIPT_URL</span> ที่ได้มา</li>
+      </ol>
+      <div class="mt-3 grid md:grid-cols-2 gap-3">
+        <input id="scriptUrl" class="px-3 py-2 border rounded-xl" placeholder="วาง SCRIPT_URL ที่นี่">
+        <div class="flex gap-2">
+          <button id="btnTestGet" class="px-3 py-2 rounded-xl bg-white border text-sm">ทดสอบ GET (อ่านข้อมูล)</button>
+          <button id="btnTestPost" class="px-3 py-2 rounded-xl bg-white border text-sm">ทดสอบ POST (ส่งข้อมูล)</button>
+        </div>
+      </div>
+      <pre class="mt-3 p-3 bg-slate-100 rounded-xl text-xs overflow-auto" id="testResult">ผลลัพธ์จะแสดงที่นี่…</pre>
+    </section>
+
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <h2 class="font-bold text-lg">3) ตัวอย่างการเรียกใช้จากหน้า Chemical</h2>
+      <pre class="mt-3 p-4 bg-slate-900 text-slate-50 rounded-xl overflow-auto text-xs">// อ่านข้อมูล (GET)
+fetch(SCRIPT_URL + "?sheet=chemical").then(r => r.json()).then(json => console.log(json));
+
+// เขียนข้อมูล (POST)
+fetch(SCRIPT_URL, {
+  method: "POST",
+  headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({
+    sheet: "chemical",
+    headers: ["name","unit","amount","remaining","note"],
+    rows: data // ← อาร์เรย์วัตถุจาก localStorage
+  })
+}).then(r => r.json()).then(console.log);</pre>
+    </section>
+  </main>
+
+  <script>
+    function copyCode(){
+      const el = document.getElementById('codeBlock');
+      navigator.clipboard.writeText(el.innerText);
+      alert("คัดลอก Code.gs แล้ว");
+    }
+
+    async function testFetch(method){
+      const url = document.getElementById('scriptUrl').value.trim();
+      const out = document.getElementById('testResult');
+      if(!url){ out.textContent = "กรุณาวาง SCRIPT_URL ก่อน"; return; }
+      out.textContent = "กำลังเรียกใช้งาน…";
+      try{
+        if(method === "GET"){
+          const r = await fetch(url + "?sheet=chemical");
+          const j = await r.json();
+          out.textContent = JSON.stringify(j, null, 2);
+        } else {
+          // ตัวอย่าง POST ส่งข้อมูลจำลอง 2 แถว
+          const sample = [
+            { name: "Ethanol 99%", unit: "L", amount: 20, remaining: 18, note: "จากหน้า code.html" },
+            { name: "NaOH Pellets", unit: "g", amount: 500, remaining: 420, note: "จากหน้า code.html" }
+          ];
+          const r = await fetch(url, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ sheet: "chemical", headers: ["name","unit","amount","remaining","note"], rows: sample })
+          });
+          const j = await r.json();
+          out.textContent = JSON.stringify(j, null, 2);
+        }
+      }catch(err){
+        out.textContent = "ผิดพลาด: " + err.message + "\n\nหมายเหตุ: ถ้า CORS บล็อก ให้เปิดหน้า code.html นี้บนโดเมนที่ปลอดภัย (เช่น GitHub Pages) หรือทดสอบใน Apps Script โดยตรง";
+      }
+    }
+    document.getElementById('btnTestGet').onclick = () => testFetch("GET");
+    document.getElementById('btnTestPost').onclick = () => testFetch("POST");
+  </script>
+</body>
+</html>

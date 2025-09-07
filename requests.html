@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — Requests</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="./index.html" class="size-9 rounded-2xl bg-slate-900 text-white grid place-items-center font-bold">SF</a>
+        <div>
+          <h1 class="text-xl font-extrabold">เบิกของ (Requests)</h1>
+          <p class="text-xs text-slate-500">บันทึกการเบิก · ลดสต็อกอัตโนมัติ (Chemical/Equipment)</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-2">
+        <a href="./index.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">หน้าหลัก</a>
+        <a href="./chemical.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Chemical</a>
+        <a href="./equipment.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Equipment</a>
+        <a href="./locations.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Locations</a>
+        <a href="./code.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Code</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <section class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="font-bold text-lg">สร้างคำขอเบิก</div>
+      </div>
+
+      <div class="mt-4 grid md:grid-cols-6 gap-2">
+        <input id="reqBy" class="px-3 py-2 border rounded-xl" placeholder="ผู้ขอเบิก">
+        <input id="itemName" class="px-3 py-2 border rounded-xl" placeholder="ชื่อรายการ *">
+        <input id="qty" type="number" class="px-3 py-2 border rounded-xl" placeholder="จำนวน *">
+        <select id="applyTo" class="px-3 py-2 border rounded-xl">
+          <option value="none">ไม่ลดสต็อกอัตโนมัติ</option>
+          <option value="chemical">ลดจาก Chemical</option>
+          <option value="equipment">ลดจาก Equipment</option>
+        </select>
+        <input id="note" class="px-3 py-2 border rounded-xl md:col-span-2" placeholder="หมายเหตุ">
+        <button id="btnAdd" class="px-3 py-2 rounded-xl bg-slate-900 text-white md:col-span-1">บันทึก</button>
+      </div>
+
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left bg-slate-100">
+            <tr>
+              <th class="px-3 py-2">เวลา</th>
+              <th class="px-3 py-2">ผู้ขอ</th>
+              <th class="px-3 py-2">รายการ</th>
+              <th class="px-3 py-2">จำนวน</th>
+              <th class="px-3 py-2">ผลการลดสต็อก</th>
+              <th class="px-3 py-2">หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button id="btnExportJSON" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export JSON</button>
+        <button id="btnExportCSV" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export CSV</button>
+        <label class="px-3 py-2 rounded-xl bg-white border cursor-pointer">
+          Import JSON/CSV
+          <input id="fileImport" type="file" accept=".json,.csv" class="hidden">
+        </label>
+        <button id="btnClearAll" class="px-3 py-2 rounded-xl bg-white border">ลบทั้งหมด</button>
+      </div>
+    </section>
+  </main>
+
+  <template id="rowTemplate">
+    <tr>
+      <td class="px-3 py-2 text-slate-500"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2 font-medium"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2 text-slate-600"></td>
+      <td class="px-3 py-2"></td>
+    </tr>
+  </template>
+
+  <script>
+    const KEY = "requests_log";
+    const $ = (s, r=document)=>r.querySelector(s);
+    const load = (k,d=[])=>{ try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;} };
+    const save = (k,v)=>localStorage.setItem(k, JSON.stringify(v));
+
+    let data = load(KEY);
+
+    const rowTpl = document.getElementById('rowTemplate');
+    const tbody = document.getElementById('tbody');
+
+    function render(){
+      tbody.innerHTML = "";
+      data.forEach(x=>{
+        const row = rowTpl.content.firstElementChild.cloneNode(true);
+        const c = row.children;
+        c[0].textContent = x.ts;
+        c[1].textContent = x.by || "-";
+        c[2].textContent = x.name;
+        c[3].textContent = x.qty;
+        c[4].textContent = x.applyResult || "-";
+        c[5].textContent = x.note || "";
+        tbody.appendChild(row);
+      });
+    }
+
+    function applyToStock(kind, name, qty){
+      const lower = name.toLowerCase();
+      if(kind === 'chemical'){
+        let arr = load('chemical_stock');
+        const map = new Map(arr.map(x=>[(x.name||'').toLowerCase(), x]));
+        const item = map.get(lower);
+        if(!item) return 'ไม่พบใน Chemical';
+        item.remaining = Math.max(0, (Number(item.remaining)||0) - Number(qty||0));
+        localStorage.setItem('chemical_stock', JSON.stringify(arr));
+        // history
+        try{
+          const hkey='chemical_history';
+          const hist = load(hkey);
+          hist.unshift({ ts:new Date().toLocaleString('th-TH'), action:'Request -'+qty, chemical:item.name, note:'via requests.html' });
+          localStorage.setItem(hkey, JSON.stringify(hist.slice(0,500)));
+        }catch{}
+        return 'ลดจาก Chemical แล้ว';
+      }
+      if(kind === 'equipment'){
+        let arr = load('equipment_stock');
+        const map = new Map(arr.map(x=>[(x.name||'').toLowerCase(), x]));
+        const item = map.get(lower);
+        if(!item) return 'ไม่พบใน Equipment';
+        item.qty = Math.max(0, (Number(item.qty)||0) - Number(qty||0));
+        localStorage.setItem('equipment_stock', JSON.stringify(arr));
+        // history
+        try{
+          const hkey='equipment_history';
+          const hist = load(hkey);
+          hist.unshift({ ts:new Date().toLocaleString('th-TH'), action:'Request -'+qty, item:item.name, note:'via requests.html' });
+          localStorage.setItem(hkey, JSON.stringify(hist.slice(0,500)));
+        }catch{}
+        return 'ลดจาก Equipment แล้ว';
+      }
+      return '-';
+    }
+
+    document.getElementById('btnAdd').onclick = () => {
+      const by = document.getElementById('reqBy').value.trim();
+      const name = document.getElementById('itemName').value.trim();
+      const qty = Number(document.getElementById('qty').value);
+      const applyTo = document.getElementById('applyTo').value;
+      const note = document.getElementById('note').value.trim();
+      if(!name || !Number.isFinite(qty)) { alert('กรุณากรอก ชื่อรายการ และ จำนวน'); return; }
+      const applyResult = applyToStock(applyTo, name, qty);
+      const row = { ts:new Date().toLocaleString('th-TH'), by, name, qty, applyTo, applyResult, note };
+      data.unshift(row); save(KEY, data); render();
+      document.getElementById('itemName').value=''; document.getElementById('qty').value=''; document.getElementById('note').value='';
+    };
+
+    function download(filename, text) {
+      const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btnExportJSON').onclick = () => download('requests_log.json', JSON.stringify(data, null, 2));
+    document.getElementById('btnExportCSV').onclick = () => {
+      const esc = v=>'"'+String(v).replace(/"/g,'""')+'"';
+      const header=['ts','by','name','qty','applyTo','applyResult','note'];
+      const rows=data.map(x=>header.map(h=>esc(x[h]||'')).join(','));
+      download('requests_log.csv', header.join(',')+'\n'+rows.join('\n'));
+    };
+
+    document.getElementById('fileImport').onchange = (e)=>{
+      const file=e.target.files[0]; if(!file) return; const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          let arr=[]; const txt=reader.result;
+          if(file.name.endsWith('.json')) arr=JSON.parse(txt);
+          else {
+            const lines=txt.split(/\r?\n/).filter(Boolean); const header=lines.shift().split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+            const idx=h=>header.indexOf(h);
+            arr=lines.map(line=>{
+              const cols=line.match(/(?:^|,)(?:\"[^\"]*\"|[^,]*)/g).map(c=>c.replace(/^,/,'').replace(/^"|"$/g,''));
+              return { ts:cols[idx('ts')]||'', by:cols[idx('by')]||'', name:cols[idx('name')]||'', qty:Number(cols[idx('qty')]||0), applyTo:cols[idx('applyTo')]||'none', applyResult:cols[idx('applyResult')]||'', note:cols[idx('note')]||'' };
+            });
+          }
+          data=arr.concat(data); save(KEY,data); render();
+        }catch(err){ alert('ไฟล์นำเข้าไม่ถูกต้อง: '+err.message); }
+        e.target.value='';
+      }; reader.readAsText(file);
+    };
+
+    document.getElementById('btnClearAll').onclick=()=>{
+      if(!confirm('ลบข้อมูลทั้งหมดของ Requests?')) return; data=[]; save(KEY,data); render();
+    };
+
+    render();
+  </script>
+</body>
+</html>

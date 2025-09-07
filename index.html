@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockFlow Lite — หน้าหลัก</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: {
+      fontFamily: { sans: ["Inter","Noto Sans Thai","system-ui","-apple-system","Segoe UI","Roboto","Ubuntu","Cantarell","Noto Sans","Helvetica Neue","Arial","sans-serif"] },
+    } } };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="size-9 rounded-2xl bg-slate-900 text-white grid place-items-center font-bold">SF</div>
+        <div>
+          <h1 class="text-xl font-extrabold">StockFlow Lite</h1>
+          <p class="text-xs text-slate-500">เว็บเก็บของ • ทำงานออฟไลน์ได้ • เชื่อม Google Sheet ได้</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-2">
+        <a href="./index.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm font-semibold">หน้าหลัก</a>
+        <a href="./chemical.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Chemical</a>
+        <a href="./equipment.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Equipment</a>
+        <a href="./requests.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">เบิกของ (Requests)</a>
+        <a href="./locations.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">ตำแหน่งจัดเก็บ (Locations)</a>
+        <a href="./code.html" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-sm">Code</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-10">
+    <section class="mb-10">
+      <div class="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-700 text-white p-8 shadow-lg">
+        <h2 class="text-3xl md:text-4xl font-extrabold">สวัสดี ดาฟ 👋</h2>
+        <p class="mt-2 text-slate-200">นี่คือศูนย์ควบคุมเว็บเก็บของของคุณ — เลือกหน้าเพื่อจัดการสต็อก, อุปกรณ์, เบิกของ, ตำแหน่งจัดเก็บ หรือเชื่อมต่อกับ Google Sheet</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="./chemical.html" class="px-4 py-2 rounded-2xl bg-white text-slate-900 font-semibold shadow hover:shadow-md">ไปหน้า Chemical</a>
+          <a href="./equipment.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ไปหน้า Equipment</a>
+          <a href="./requests.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ไปหน้า Requests</a>
+          <a href="./locations.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ไปหน้า Locations</a>
+          <a href="./code.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ตั้งค่าเชื่อมต่อ Sheet</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3 class="text-xl font-bold mb-4">เมนูด่วน</h3>
+      <div class="grid md:grid-cols-3 gap-4">
+        <a href="./chemical.html" class="group rounded-2xl bg-white border border-slate-200 p-5 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-xl bg-slate-900 text-white grid place-items-center font-bold">Ch</div>
+            <div>
+              <div class="font-bold">Chemical Stock</div>
+              <div class="text-slate-500 text-sm">บันทึกคงเหลือ, +/-, นำเข้า/ส่งออก JSON/CSV</div>
+            </div>
+          </div>
+        </a>
+        <a href="./equipment.html" class="group rounded-2xl bg-white border border-slate-200 p-5 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-xl bg-slate-900 text-white grid place-items-center font-bold">Eq</div>
+            <div>
+              <div class="font-bold">Equipment Stock</div>
+              <div class="text-slate-500 text-sm">จัดการรายการอุปกรณ์, +/-, ประวัติการแก้ไข</div>
+            </div>
+          </div>
+        </a>
+        <a href="./requests.html" class="group rounded-2xl bg-white border border-slate-200 p-5 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-xl bg-slate-900 text-white grid place-items-center font-bold">Rq</div>
+            <div>
+              <div class="font-bold">เบิกของ (Requests)</div>
+              <div class="text-slate-500 text-sm">บันทึกการเบิก ลดสต็อกอัตโนมัติ</div>
+            </div>
+          </div>
+        </a>
+        <a href="./locations.html" class="group rounded-2xl bg-white border border-slate-200 p-5 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-xl bg-slate-900 text-white grid place-items-center font-bold">Lo</div>
+            <div>
+              <div class="font-bold">ตำแหน่งจัดเก็บ (Locations)</div>
+              <div class="text-slate-500 text-sm">ชั้น/ตู้/ห้อง เก็บ metadata สินค้า</div>
+            </div>
+          </div>
+        </a>
+        <a href="./code.html" class="group rounded-2xl bg-white border border-slate-200 p-5 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-xl bg-slate-900 text-white grid place-items-center font-bold">{ }</div>
+            <div>
+              <div class="font-bold">Code & เชื่อม Google Sheet</div>
+              <div class="text-slate-500 text-sm">สคริปต์ Apps Script (doGet/doPost) พร้อมทดสอบ</div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 py-10 text-sm text-slate-500">
+    Draft × Meeta · ทำงานออฟไลน์ได้ · อัปเดตล่าสุด: <span id="builtAt"></span>
+  </footer>
+
+  <script>
+    document.getElementById("builtAt").textContent = new Date().toLocaleString("th-TH");
+  </script>
+</body>
+</html>
