@@ -4,10 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>StockFlow Lite — หน้าหลัก</title>
+
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { theme: { extend: {
-      fontFamily: { sans: ["Inter","Noto Sans Thai","system-ui","-apple-system","Segoe UI","Roboto","Ubuntu","Cantarell","Noto Sans","Helvetica Neue","Arial","sans-serif"] },
+      fontFamily: { 
+        sans: ["Inter","Noto Sans Thai","system-ui","-apple-system","Segoe UI","Roboto","Ubuntu","Cantarell","Noto Sans","Helvetica Neue","Arial","sans-serif"] 
+      },
     } } };
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +19,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 font-sans">
+  <!-- Header -->
   <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -35,21 +40,17 @@
     </div>
   </header>
 
+  <!-- Main -->
   <main class="max-w-6xl mx-auto px-4 py-10">
+    <!-- Hero -->
     <section class="mb-10">
       <div class="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-700 text-white p-8 shadow-lg">
         <h2 class="text-3xl md:text-4xl font-extrabold">สวัสดี ดาฟ 👋</h2>
         <p class="mt-2 text-slate-200">นี่คือศูนย์ควบคุมเว็บเก็บของของคุณ — เลือกหน้าเพื่อจัดการสต็อก, อุปกรณ์, เบิกของ, ตำแหน่งจัดเก็บ หรือเชื่อมต่อกับ Google Sheet</p>
-        <div class="mt-6 flex flex-wrap gap-3">
-          <a href="./chemical.html" class="px-4 py-2 rounded-2xl bg-white text-slate-900 font-semibold shadow hover:shadow-md">ไปหน้า Chemical</a>
-          <a href="./equipment.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ไปหน้า Equipment</a>
-          <a href="./requests.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ไปหน้า Requests</a>
-          <a href="./locations.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ไปหน้า Locations</a>
-          <a href="./code.html" class="px-4 py-2 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20">ตั้งค่าเชื่อมต่อ Sheet</a>
-        </div>
       </div>
     </section>
 
+    <!-- Quick Menu -->
     <section>
       <h3 class="text-xl font-bold mb-4">เมนูด่วน</h3>
       <div class="grid md:grid-cols-3 gap-4">
@@ -102,6 +103,7 @@
     </section>
   </main>
 
+  <!-- Footer -->
   <footer class="max-w-6xl mx-auto px-4 py-10 text-sm text-slate-500">
     Draft × Meeta · ทำงานออฟไลน์ได้ · อัปเดตล่าสุด: <span id="builtAt"></span>
   </footer>
